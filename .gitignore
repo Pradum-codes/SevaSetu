@@ -1,15 +1,28 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+# General
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+Thumbs.db
+*.log
+
+# Environment
+.env
+.env.local
+
+# Node.js (Backend)
+node_modules/
+dist/
+coverage/
+
+# Android
+.gradle/
 local.properties
+.idea/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IntelliJ / Android Studio
+*.iml
+
+# Misc
+*.swp
