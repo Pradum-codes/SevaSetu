@@ -178,7 +178,7 @@ fun splashscreen(onNavigate: () -> Unit) {
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "VERIFIED CIVIC INFRASTRUCTURE",
+                text = "✔ VERIFIED CIVIC INFRASTRUCTURE",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 2.sp,
