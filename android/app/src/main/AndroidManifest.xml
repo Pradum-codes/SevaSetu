@@ -12,12 +12,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SevaSetu">
         <activity
+            android:name=".SplashScreen"
+            android:exported="false"
+            android:label="@string/title_activity_login"
+            android:theme="@style/Theme.SevaSetu" />
+        <activity
             android:name=".MainActivity"
             android:exported="false"
             android:label="@string/title_activity_splash_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".SplashScreen"
+            android:name=".Login"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
