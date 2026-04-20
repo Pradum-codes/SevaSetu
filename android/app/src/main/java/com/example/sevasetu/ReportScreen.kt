@@ -271,12 +271,14 @@ fun MyReportsScreen() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(Color.White)
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
+                    Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
                         drawRoundRect(
-                            color = Color.LightGray.copy(alpha = 0.5f),
+                            color = Color(0xFFBDBDBD),
                             style = Stroke(
-                                width = 3f,
+                                width = 2.dp.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
                             ),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(32.dp.toPx())
