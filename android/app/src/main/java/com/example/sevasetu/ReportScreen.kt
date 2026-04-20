@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -117,7 +118,7 @@ fun MyReportsScreen() {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFFBFDFA))
+                .background(Color(0xFFF2F5F3)) // Distinct background for card contrast
                 .padding(horizontal = 20.dp)
         ) {
             item {
@@ -159,8 +160,9 @@ fun MyReportsScreen() {
                     filters.forEach { (label, isSelected) ->
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFF006D47) else Color(0xFFF1F4F2),
-                            modifier = Modifier.height(36.dp)
+                            color = if (isSelected) Color(0xFF006D47) else Color.White,
+                            modifier = Modifier.height(36.dp),
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF006D47) else Color(0xFFD1D5D3))
                         ) {
                             Box(
                                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -193,7 +195,8 @@ fun MyReportsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(1.dp, Color(0xFFD1D5D3))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -232,16 +235,17 @@ fun MyReportsScreen() {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             
-                            val (bgColor, txtColor) = when (status) {
-                                "PENDING" -> Color(0xFFFFEBEE) to Color(0xFFD32F2F)
-                                "RESOLVED" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
-                                "IN PROGRESS" -> Color(0xFFE0F2F1) to Color(0xFF00695C)
-                                else -> Color.LightGray to Color.DarkGray
+                            val (bgColor, txtColor, borderColor) = when (status) {
+                                "PENDING" -> Triple(Color(0xFFFFEBEE), Color(0xFFD32F2F), Color(0xFFFFCDD2))
+                                "RESOLVED" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFC8E6C9))
+                                "IN PROGRESS" -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), Color(0xFFB2DFDB))
+                                else -> Triple(Color.LightGray, Color.DarkGray, Color.Gray)
                             }
                             
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = bgColor
+                                color = bgColor,
+                                border = BorderStroke(1.dp, borderColor)
                             ) {
                                 Text(
                                     text = status,
