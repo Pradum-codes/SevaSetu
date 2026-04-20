@@ -1,5 +1,6 @@
 package com.example.sevasetu.ui.screen.Profile
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,11 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sevasetu.Dashboard
+import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.Reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 
 class ProfileScreen : ComponentActivity() {
@@ -44,6 +49,7 @@ class ProfileScreen : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreenContent() {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -84,19 +90,25 @@ fun ProfileScreenContent() {
             NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, Dashboard::class.java))
+                    },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, ReportScreen::class.java))
+                    },
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, AlertsScreen::class.java))
+                    },
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
                 )

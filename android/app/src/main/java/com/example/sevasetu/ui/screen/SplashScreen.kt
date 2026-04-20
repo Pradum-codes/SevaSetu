@@ -1,5 +1,6 @@
-package com.example.sevasetu
+package com.example.sevasetu.ui.screen
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +42,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sevasetu.Login
+import com.example.sevasetu.R
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.delay
 
@@ -51,8 +53,9 @@ class SplashScreen : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SevaSetuTheme {
-                splashscreen(onNavigate = {
-                    // Navigate to the next screen (e.g., Main Activity)
+                SplashScreenContent(onNavigate = {
+                    startActivity(Intent(this, Login::class.java))
+                    finish()
                 })
             }
         }
@@ -60,7 +63,7 @@ class SplashScreen : ComponentActivity() {
 }
 
 @Composable
-fun splashscreen(onNavigate: () -> Unit) {
+fun SplashScreenContent(onNavigate: () -> Unit) {
     val logoScale = remember { Animatable(0.8f) }
     val logoAlpha = remember { Animatable(0f) }
 
@@ -192,6 +195,6 @@ fun splashscreen(onNavigate: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun SplashScreenPreview() {
-    splashscreen {
+    SplashScreenContent {
     }
 }

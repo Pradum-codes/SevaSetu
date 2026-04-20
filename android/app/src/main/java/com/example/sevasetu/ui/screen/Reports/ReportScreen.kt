@@ -1,5 +1,6 @@
 package com.example.sevasetu.ui.screen.Reports
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,11 +24,15 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sevasetu.Dashboard
+import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 
 class ReportScreen : ComponentActivity() {
@@ -45,6 +50,7 @@ class ReportScreen : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen() {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -62,7 +68,9 @@ fun MyReportsScreen() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                    }) {
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -85,7 +93,9 @@ fun MyReportsScreen() {
             NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, Dashboard::class.java))
+                    },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
                 )
@@ -102,13 +112,17 @@ fun MyReportsScreen() {
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, AlertsScreen::class.java))
+                    },
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { },
+                    onClick = {
+                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                    },
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }
                 )

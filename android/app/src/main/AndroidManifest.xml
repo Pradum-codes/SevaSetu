@@ -23,7 +23,7 @@
             android:label="@string/title_activity_profile_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".Login"
+            android:name=".ui.screen.SplashScreen"
             android:exported="true"
             android:label="@string/title_activity_report_screen"
             android:theme="@style/Theme.SevaSetu">
@@ -39,7 +39,7 @@
             android:label="@string/title_activity_dashboard"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".SplashScreen"
+            android:name=".Login"
             android:exported="false"
             android:label="@string/title_activity_login"
             android:theme="@style/Theme.SevaSetu" />
