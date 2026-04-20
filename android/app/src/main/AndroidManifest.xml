@@ -12,6 +12,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SevaSetu">
         <activity
+            android:name=".ReportScreen"
+            android:exported="false"
+            android:label="@string/title_activity_profile_screen"
+            android:theme="@style/Theme.SevaSetu" />
+        <activity
             android:name=".Login"
             android:exported="false"
             android:label="@string/title_activity_report_screen"
@@ -32,7 +37,7 @@
             android:label="@string/title_activity_splash_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".ReportScreen"
+            android:name=".ProfileScreen"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
