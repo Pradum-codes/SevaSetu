@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -23,9 +24,15 @@
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".Login"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/title_activity_report_screen"
-            android:theme="@style/Theme.SevaSetu" />
+            android:theme="@style/Theme.SevaSetu">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".Dashboard"
             android:exported="false"
@@ -43,13 +50,7 @@
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.Profile.ProfileScreen"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false" />
     </application>
 
 </manifest>
