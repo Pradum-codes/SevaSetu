@@ -12,12 +12,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SevaSetu">
         <activity
-            android:name=".AlertsScreen"
+            android:name=".ui.screen.Alerts.AlertsScreen"
             android:exported="false"
             android:label="@string/title_activity_alerts_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".ReportScreen"
+            android:name=".ui.screen.Reports.ReportScreen"
             android:exported="false"
             android:label="@string/title_activity_profile_screen"
             android:theme="@style/Theme.SevaSetu" />
@@ -42,7 +42,7 @@
             android:label="@string/title_activity_splash_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
-            android:name=".ProfileScreen"
+            android:name=".ui.screen.Profile.ProfileScreen"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -1,4 +1,4 @@
-package com.example.sevasetu
+package com.example.sevasetu.ui.screen.Profile
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

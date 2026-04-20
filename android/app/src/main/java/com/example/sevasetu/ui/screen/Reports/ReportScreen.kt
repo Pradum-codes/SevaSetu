@@ -1,4 +1,4 @@
-package com.example.sevasetu
+package com.example.sevasetu.ui.screen.Reports
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -285,7 +286,7 @@ fun MyReportsScreen() {
                                 width = 2.dp.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
                             ),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(32.dp.toPx())
+                            cornerRadius = CornerRadius(32.dp.toPx())
                         )
                     }
                     

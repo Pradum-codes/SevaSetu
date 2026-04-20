@@ -25,4 +25,6 @@ captures/
 *.iml
 
 # Misc
+*.codex
 *.swp
+test/
