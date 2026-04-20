@@ -10,36 +10,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
+enum AreaType {
+  URBAN
+  RURAL
+}
 
-  issues Issue[]
-  votes  Vote[]
+enum RoleName {
+  CITIZEN
+  AUTHORITY
+  ADMIN
+}
+
+enum JurisdictionType {
+  STATE
+  DISTRICT
+  CITY
+  ZONE
+  WARD
+  BLOCK
+  PANCHAYAT
+}
+
+enum JurisdictionCategory {
+  URBAN
+  RURAL
+}
+
+model User {
+  id                     String    @id @default(uuid())
+  email                  String    @unique
+  name                   String?
+  phone                  String?
+  aadhaarNumber          String?
+  jurisdictionId         String?
+  addressDistrict        String?
+  addressAreaType        AreaType?
+  addressCityOrPanchayat String?
+  addressWard            String?
+  addressLocality        String?
+  addressLandmark        String?
+  addressText            String?
+  addressLat             Float?
+  addressLng             Float?
+  createdAt              DateTime  @default(now())
+
+  jurisdiction   Jurisdiction?    @relation(fields: [jurisdictionId], references: [id])
+  issues         Issue[]
+  votes          Vote[]
+  userRoles      UserRole[]
+  authorityProfile AuthorityProfile?
 
   @@map("users")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      RoleName @unique
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId     String
+  roleId     Int
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Jurisdiction {
+  id        String               @id @default(uuid())
+  name      String
+  type      JurisdictionType
+  category  JurisdictionCategory
+  parentId  String?
+  pincode   String?
+  createdAt DateTime             @default(now())
+
+  parent            Jurisdiction?      @relation("JurisdictionHierarchy", fields: [parentId], references: [id])
+  children          Jurisdiction[]     @relation("JurisdictionHierarchy")
+  users             User[]
+  issues            Issue[]
+  authorityProfiles AuthorityProfile[]
+
+  @@map("jurisdictions")
+}
+
+model Category {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  issues Issue[]
+
+  @@map("categories")
 }
 
 model Issue {
   id        Int     @id @default(autoincrement())
   clientId  String  @unique // For offline-first support
   userId    String
+  categoryId Int?
   title     String
   description String
+  addressText String?
+  landmark  String?
+  locality  String?
   imageUrl  String?
   lat       Float
   lng       Float
-  status    String  @default("open") // open, in_progress, resolved, closed
-  priority  String  @default("medium") // low, medium, high
+  status    String  @default("open")
+  priority  String  @default("medium")
   departmentId Int?
+  jurisdictionId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id])
   votes      Vote[]
   department Department? @relation(fields: [departmentId], references: [id])
+  jurisdiction Jurisdiction? @relation(fields: [jurisdictionId], references: [id])
   updates    IssueUpdate[]
+  images     IssueImage[]
 
   @@map("issues")
 }
@@ -67,11 +163,36 @@ model Otp {
 }
 
 model Department {
-  id    Int     @id @default(autoincrement())
-  name  String  @unique
-  issues Issue[]
+  id                Int                @id @default(autoincrement())
+  name              String             @unique
+  issues            Issue[]
+  authorityProfiles AuthorityProfile[]
 
   @@map("departments")
+}
+
+model Designation {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique
+  authorityProfiles AuthorityProfile[]
+
+  @@map("designations")
+}
+
+model AuthorityProfile {
+  userId         String   @id
+  designationId  Int
+  departmentId   Int
+  jurisdictionId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation  Designation  @relation(fields: [designationId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+  jurisdiction Jurisdiction @relation(fields: [jurisdictionId], references: [id])
+
+  @@map("authority_profiles")
 }
 
 model IssueUpdate {
@@ -83,4 +204,15 @@ model IssueUpdate {
   issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@map("issue_updates")
+}
+
+model IssueImage {
+  id        String   @id @default(uuid())
+  issueId   Int
+  imageUrl  String
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@map("issue_images")
 }

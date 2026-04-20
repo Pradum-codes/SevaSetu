@@ -1,27 +1,79 @@
-const pool = require('../db');
+import {
+  createIssue as createIssueService,
+  IssueServiceError,
+  listNearbyIssuesByDistrict,
+  listUserReports,
+  listIssues as listIssuesService,
+  syncIssues as syncIssuesService
+} from '../services/IssueService.js';
 
-exports.createIssue = async (req, res) => {
-  const { title, description, lat, lng } = req.body;
+const handleIssueError = (error, res) => {
+  if (error instanceof IssueServiceError) {
+    return res.status(error.statusCode).json({ error: error.message });
+  }
 
+  console.error('issue controller error:', error);
+  return res.status(500).json({ error: 'Internal Server Error' });
+};
+
+export const createIssue = async (req, res) => {
   try {
-    const result = await pool.query(
-      `INSERT INTO issues (title, description, lat, lng)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [title, description, lat, lng]
-    );
+    const userId = req.user?.userId;
+    if (!userId) return res.sendStatus(401);
 
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { issue, created } = await createIssueService({
+      payload: req.body,
+      userId
+    });
+
+    return res.status(created ? 201 : 200).json({
+      message: created ? 'Issue reported successfully' : 'Issue already exists for this clientId',
+      idempotent: !created,
+      issue
+    });
+  } catch (error) {
+    return handleIssueError(error, res);
   }
 };
 
-exports.getIssues = async (req, res) => {
+export const getIssues = async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM issues LIMIT 50`);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { issues, page, limit } = await listIssuesService({ query: req.query });
+    return res.json({ issues, page, limit });
+  } catch (error) {
+    return handleIssueError(error, res);
+  }
+};
+
+export const getIssueSync = async (req, res) => {
+  try {
+    const payload = await syncIssuesService({ query: req.query });
+    return res.json(payload);
+  } catch (error) {
+    return handleIssueError(error, res);
+  }
+};
+
+export const getNearbyIssues = async (req, res) => {
+  try {
+    const payload = await listNearbyIssuesByDistrict({ query: req.query });
+    return res.json(payload);
+  } catch (error) {
+    return handleIssueError(error, res);
+  }
+};
+
+export const getMyReports = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.sendStatus(401);
+
+    const payload = await listUserReports({
+      userId,
+      query: req.query
+    });
+    return res.json(payload);
+  } catch (error) {
+    return handleIssueError(error, res);
   }
 };

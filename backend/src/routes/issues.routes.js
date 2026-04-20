@@ -1,8 +1,20 @@
-const express = require('express');
-const router = express.Router();
-const { createIssue, getIssues } = require('../controllers/issues.controller');
+import { Router } from 'express';
+import authMiddleware from '../middlewares/auth.middleware.js';
+import profileCompletionMiddleware from '../middlewares/profile-completion.middleware.js';
+import {
+  createIssue,
+  getIssueSync,
+  getIssues,
+  getMyReports,
+  getNearbyIssues
+} from '../controllers/issue.controller.js';
 
-router.post('/', createIssue);
+const router = Router();
+
+router.get('/nearby', getNearbyIssues);
+router.get('/reports', authMiddleware, getMyReports);
 router.get('/', getIssues);
+router.get('/sync', authMiddleware, getIssueSync);
+router.post('/', authMiddleware, profileCompletionMiddleware, createIssue);
 
-module.exports = router;
+export default router;

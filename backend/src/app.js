@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import issueRoutes from './routes/issues.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,6 +25,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/issues', issueRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
