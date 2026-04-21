@@ -14,6 +14,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SevaSetu">
         <activity
+            android:name=".ui.screen.Reports.IssueReport"
+            android:exported="false"
+            android:theme="@style/Theme.SevaSetu" />
+        <activity
             android:name=".ui.screen.Login.AccountCreation"
             android:exported="false"
             android:theme="@style/Theme.SevaSetu" />

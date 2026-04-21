@@ -7,4 +7,5 @@
     <string name="title_activity_profile_screen">ProfileScreen</string>
     <string name="title_activity_alerts_screen">AlertsScreen</string>
     <string name="title_activity_account_creation">AccountCreation</string>
+    <string name="title_activity_issue_report">IssueReport</string>
 </resources>
