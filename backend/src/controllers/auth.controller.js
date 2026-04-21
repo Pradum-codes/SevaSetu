@@ -156,23 +156,52 @@ export const verifyOtp = async (req, res) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const name = req.body?.name?.trim();
+    const name = toTrimmedString(req.body?.fullName);
     const email = req.body?.email?.trim()?.toLowerCase();
-    const phone = req.body?.phone?.trim();
+    const phone = toTrimmedString(req.body?.phoneNumber);
+    const gender = toOptionalTrimmedString(req.body?.gender);
+    const idType = toOptionalTrimmedString(req.body?.idType);
+    const idNumber = toOptionalTrimmedString(req.body?.idNumber);
+    const addressText = toOptionalTrimmedString(req.body?.address);
+    const city = toOptionalTrimmedString(req.body?.city);
+    const pinCode = toOptionalTrimmedString(req.body?.pinCode);
 
-    if (!name || !isEmailValid(email) || !isPhoneValid(phone)) {
+    // Validate required fields
+    const fieldErrors = [];
+    if (!name) fieldErrors.push('fullName is required');
+    if (!isEmailValid(email)) fieldErrors.push('valid email is required');
+    if (!isPhoneValid(phone)) fieldErrors.push('10-digit phone number is required');
+    if (!gender) fieldErrors.push('gender is required');
+    if (!idType) fieldErrors.push('idType is required');
+    if (!idNumber) fieldErrors.push('idNumber is required');
+    if (!addressText) fieldErrors.push('address is required');
+    if (!city) fieldErrors.push('city is required');
+    if (!pinCode) fieldErrors.push('pinCode is required');
+
+    if (fieldErrors.length > 0) {
       return res.status(400).json({
-        error: 'Valid name, email, and 10-digit phone are required'
+        error: 'All fields are required',
+        details: fieldErrors
       });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(409).json({ error: 'User already exists. Please login with OTP' });
+      return res.status(409).json({ error: 'User already exists. Please login' });
     }
 
     const user = await prisma.user.create({
-      data: { name, email, phone }
+      data: {
+        name,
+        email,
+        phone,
+        gender,
+        idType,
+        idNumber,
+        addressText,
+        addressCityOrPanchayat: city,
+        pinCode
+      }
     });
 
     return res.json({
@@ -183,114 +212,5 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error('registerUser error:', error);
     return res.status(500).json({ error: 'Failed to register user' });
-  }
-};
-
-export const completeOnboarding = async (req, res) => {
-  try {
-    const name = req.body?.name?.trim();
-    const email = req.body?.email?.trim()?.toLowerCase();
-    const phone = req.body?.phone?.trim();
-
-    if (!name || !isEmailValid(email) || !isPhoneValid(phone)) {
-      return res.status(400).json({
-        error: 'Valid name, email, and 10-digit phone are required'
-      });
-    }
-
-    if (req.user?.email !== email) {
-      return res.status(403).json({
-        error: 'Authenticated user email does not match request email'
-      });
-    }
-
-    const user = await prisma.user.update({
-      where: { id: req.user.userId },
-      data: { name, email, phone }
-    });
-
-    return res.json({
-      message: 'Onboarding completed successfully',
-      user,
-      registrationStatus: getRegistrationStatus(user)
-    });
-  } catch (error) {
-    console.error('completeOnboarding error:', error);
-    return res.status(500).json({ error: 'Failed to complete onboarding' });
-  }
-};
-
-export const completeProfile = async (req, res) => {
-  try {
-    const addressDistrict = toTrimmedString(req.body?.district);
-    const addressAreaType = toTrimmedString(req.body?.areaType).toUpperCase();
-    const addressCityOrPanchayat = toTrimmedString(req.body?.cityOrPanchayat);
-    const addressWard = toOptionalTrimmedString(req.body?.ward);
-    const addressLocality = toOptionalTrimmedString(req.body?.locality);
-    const addressLandmark = toOptionalTrimmedString(req.body?.landmark);
-    const addressText = toTrimmedString(req.body?.fullAddress);
-    const aadhaarNumber = toTrimmedString(req.body?.aadhaarNumber);
-    const addressLat = parseCoordinate(req.body?.latitude);
-    const addressLng = parseCoordinate(req.body?.longitude);
-    const jurisdictionId = toOptionalTrimmedString(req.body?.jurisdictionId);
-    const hasLatitudeInput = req.body?.latitude !== undefined && req.body?.latitude !== null;
-    const hasLongitudeInput = req.body?.longitude !== undefined && req.body?.longitude !== null;
-    const hasAnyCoordinateInput = hasLatitudeInput || hasLongitudeInput;
-    const hasBothCoordinateInput = hasLatitudeInput && hasLongitudeInput;
-
-    if (hasAnyCoordinateInput && !hasBothCoordinateInput) {
-      return res.status(400).json({
-        error: 'Send both latitude and longitude together, or omit both'
-      });
-    }
-
-    if (hasBothCoordinateInput && (!isLatitudeValid(addressLat) || !isLongitudeValid(addressLng))) {
-      return res.status(400).json({
-        error: 'Latitude/longitude are invalid'
-      });
-    }
-
-    const fieldErrors = [];
-    if (!addressDistrict) fieldErrors.push('district is required');
-    if (!isAreaTypeValid(addressAreaType)) fieldErrors.push('areaType must be URBAN or RURAL');
-    if (!addressCityOrPanchayat) fieldErrors.push('cityOrPanchayat is required');
-    if (!addressText) fieldErrors.push('fullAddress is required');
-    if (!isAadhaarValid(aadhaarNumber)) {
-      fieldErrors.push('aadhaarNumber must be a 12-digit string/number');
-    }
-
-    if (fieldErrors.length > 0) {
-      return res.status(400).json({
-        error:
-          'District, areaType(URBAN/RURAL), cityOrPanchayat, fullAddress, and valid 12-digit Aadhaar number are required',
-        details: fieldErrors
-      });
-    }
-
-    const user = await prisma.user.update({
-      where: { id: req.user.userId },
-      data: {
-        aadhaarNumber,
-        jurisdictionId,
-        addressDistrict,
-        addressAreaType,
-        addressCityOrPanchayat,
-        addressWard,
-        addressLocality,
-        addressLandmark,
-        addressText,
-        addressLat: hasBothCoordinateInput ? addressLat : null,
-        addressLng: hasBothCoordinateInput ? addressLng : null
-      }
-    });
-
-    return res.json({
-      message: 'Profile completed successfully',
-      user,
-      registrationStatus: getRegistrationStatus(user)
-    });
-  } catch (error) {
-    console.error('completeProfile error:', error);
-    return res.status(500).json({ error: 'Failed to complete profile' });
   }
 };

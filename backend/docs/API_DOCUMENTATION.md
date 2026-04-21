@@ -5,17 +5,23 @@ Base URL (local): `http://localhost:3000`
 ## Authentication
 This backend uses email OTP authentication.
 
-### 1. Register User
+### 1. Register User (Complete Onboarding)
 - **Method:** `POST`
 - **Path:** `/auth/register/onboarding`
-- **Description:** Registers a user before OTP login. No JWT required.
+- **Description:** Complete user registration with all profile information. No JWT required. All fields are mandatory.
 
 Request body:
 ```json
 {
-  "name": "Rahul Sharma",
+  "fullName": "Rahul Sharma",
   "email": "rahul@example.com",
-  "phone": "9876543210"
+  "phoneNumber": "9876543210",
+  "gender": "Male",
+  "idType": "Aadhaar Card",
+  "idNumber": "123456789012",
+  "address": "House No. 123, Arera Colony",
+  "city": "Bhopal",
+  "pinCode": "462001"
 }
 ```
 
@@ -27,7 +33,13 @@ Success response (`200`):
     "id": "uuid",
     "name": "Rahul Sharma",
     "email": "rahul@example.com",
-    "phone": "9876543210"
+    "phone": "9876543210",
+    "gender": "Male",
+    "idType": "Aadhaar Card",
+    "idNumber": "123456789012",
+    "addressText": "House No. 123, Arera Colony",
+    "addressCityOrPanchayat": "Bhopal",
+    "pinCode": "462001"
   },
   "registrationStatus": {
     "onboardingCompleted": true,
@@ -38,8 +50,8 @@ Success response (`200`):
 ```
 
 Possible error responses:
-- `400`: Invalid name/email/phone
-- `409`: User already exists
+- `400`: Missing required fields or invalid format
+- `409`: User already exists. Please login
 
 ---
 
@@ -103,66 +115,6 @@ Possible error responses:
 - `400`: No OTP found / OTP expired / Invalid OTP / Invalid input
 - `404`: User not found (register first)
 - `500`: JWT secret missing / verification failed
-
----
-
-### 4. Complete Profile
-- **Method:** `POST`
-- **Path:** `/auth/register/profile`
-- **Auth:** Bearer token required
-- **Description:** Saves structured address and Aadhaar details. Coordinates are optional; if sent, both latitude and longitude must be sent and valid.
-
-Request body:
-```json
-{
-  "district": "Bhopal",
-  "areaType": "URBAN",
-  "cityOrPanchayat": "Bhopal",
-  "ward": "Ward 12",
-  "locality": "Arera Colony",
-  "landmark": "Near Hanuman Mandir",
-  "fullAddress": "Ward 12, Arera Colony, Bhopal, MP",
-  "aadhaarNumber": "123412341234",
-  "latitude": 23.233,
-  "longitude": 77.433,
-  "jurisdictionId": "optional-jurisdiction-uuid"
-}
-```
-
-Success response (`200`):
-```json
-{
-  "message": "Profile completed successfully",
-  "user": {
-    "id": "uuid",
-    "email": "rahul@example.com",
-    "aadhaarNumber": "123412341234",
-    "addressDistrict": "Bhopal",
-    "addressAreaType": "URBAN",
-    "addressCityOrPanchayat": "Bhopal",
-    "addressWard": "Ward 12",
-    "addressLocality": "Arera Colony",
-    "addressLandmark": "Near Hanuman Mandir",
-    "addressText": "Ward 12, Arera Colony, Bhopal, MP",
-    "addressLat": 23.233,
-    "addressLng": 77.433
-  },
-  "registrationStatus": {
-    "onboardingCompleted": true,
-    "profileCompleted": true,
-    "locationCaptured": true
-  }
-}
-```
-
-Possible error responses:
-- `400`: Missing required profile fields / invalid Aadhaar / invalid coordinate input
-- `401/403`: Missing or invalid token
-
-Coordinate rules:
-- Send both `latitude` and `longitude` together, or omit both.
-- If omitted, profile is still considered complete.
-- If omitted, `locationCaptured` will be `false`.
 
 ---
 

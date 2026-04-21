@@ -41,15 +41,19 @@ model User {
   email                  String    @unique
   name                   String?
   phone                  String?
+  gender                 String?
+  idType                 String?
+  idNumber               String?
   aadhaarNumber          String?
   jurisdictionId         String?
   addressDistrict        String?
-  addressAreaType        AreaType?
   addressCityOrPanchayat String?
+  addressAreaType        AreaType?
   addressWard            String?
   addressLocality        String?
   addressLandmark        String?
   addressText            String?
+  pinCode                String?
   addressLat             Float?
   addressLng             Float?
   createdAt              DateTime  @default(now())
