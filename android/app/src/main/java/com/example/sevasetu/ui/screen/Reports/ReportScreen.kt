@@ -56,7 +56,7 @@ fun MyReportsScreen() {
             TopAppBar(
                 title = {
                     Text(
-                        "SevaSetu",
+                        "My Reports",
                         color = Color(0xFF00875A),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp

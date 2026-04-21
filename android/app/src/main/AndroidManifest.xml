@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -12,6 +13,11 @@
         android:roundIcon="@mipmap/appicon_ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SevaSetu">
+        <activity
+            android:name=".ui.screen.Login.AccountCreation"
+            android:exported="false"
+            android:label="@string/title_activity_account_creation"
+            android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.Alerts.AlertsScreen"
             android:exported="false"

@@ -29,10 +29,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sevasetu.Dashboard
+import com.example.sevasetu.Login
+import com.example.sevasetu.data.repository.AuthRepository
+import com.example.sevasetu.network.NetworkModule
+import com.example.sevasetu.ui.common.AuthViewModel
+import com.example.sevasetu.ui.common.AuthViewModelFactory
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import com.example.sevasetu.utils.TokenManager
 
 class ProfileScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +57,24 @@ class ProfileScreen : ComponentActivity() {
 @Composable
 fun ProfileScreenContent() {
     val context = LocalContext.current
+    val repository = remember {
+        AuthRepository(
+            NetworkModule.provideAuthApi(context),
+            TokenManager(context)
+        )
+    }
+    val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(repository))
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.isAuthenticated) {
+        if (!uiState.isAuthenticated) {
+            val intent = Intent(context, Login::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            context.startActivity(intent)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -249,7 +274,7 @@ fun ProfileScreenContent() {
                 
                 // Logout Button
                 OutlinedButton(
-                    onClick = { },
+                    onClick = { viewModel.logout() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(28.dp),
                     border = BorderStroke(1.dp, Color(0xFFFFEBEE)),

@@ -1,6 +1,7 @@
 package com.example.sevasetu.data.repository
 
 import com.example.sevasetu.data.remote.api.AuthApi
+import com.example.sevasetu.data.remote.dto.RegisterRequest
 import com.example.sevasetu.data.remote.dto.SendOtpRequest
 import com.example.sevasetu.data.remote.dto.UserDto
 import com.example.sevasetu.data.remote.dto.VerifyOtpRequest
@@ -40,6 +41,19 @@ class AuthRepository(
             require(body.token.isNotBlank()) { "token missing in verify-otp response" }
             require(body.user.id.isNotBlank()) { "user.id missing in verify-otp response" }
 
+            tokenManager.saveToken(body.token)
+            body.user
+        }
+    }
+
+    suspend fun register(request: RegisterRequest): Result<UserDto> {
+        return runCatching {
+            val response = authApi.register(request)
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Registration failed (${response.code()})")
+            }
+            val body = requireNotNull(response.body()) { "register response body is null" }
             tokenManager.saveToken(body.token)
             body.user
         }

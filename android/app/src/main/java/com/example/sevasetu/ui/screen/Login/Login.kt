@@ -50,12 +50,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import com.example.sevasetu.ui.screen.Login.AccountCreation
 
 class Login : ComponentActivity() {
 
@@ -78,6 +80,9 @@ class Login : ComponentActivity() {
                     onAuthSuccess = {
                         startActivity(Intent(this, Dashboard::class.java))
                         finish()
+                    },
+                    onCreateAccountClick = {
+                        startActivity(Intent(this, AccountCreation::class.java))
                     }
                 )
             }
@@ -88,7 +93,8 @@ class Login : ComponentActivity() {
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
-    onAuthSuccess: () -> Unit
+    onAuthSuccess: () -> Unit,
+    onCreateAccountClick: () -> Unit = {}
 ) {
     var phone by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf("Email") }
@@ -374,7 +380,7 @@ fun LoginScreen(
                     color = primaryGreen,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 16.sp,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { onCreateAccountClick() }
                 )
             }
         }

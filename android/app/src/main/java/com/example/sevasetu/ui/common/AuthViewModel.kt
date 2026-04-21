@@ -2,6 +2,7 @@ package com.example.sevasetu.ui.common
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.sevasetu.data.remote.dto.RegisterRequest
 import com.example.sevasetu.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,13 @@ class AuthViewModel(
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    init {
+        val token = repository.getToken()
+        if (!token.isNullOrBlank()) {
+            _uiState.update { it.copy(isAuthenticated = true) }
+        }
+    }
 
     fun onEmailChanged(value: String) {
         _uiState.update { it.copy(email = value, errorMessage = null, infoMessage = null) }
@@ -86,6 +94,31 @@ class AuthViewModel(
                             isLoading = false,
                             isAuthenticated = false,
                             errorMessage = throwable.message ?: "OTP verification failed"
+                        )
+                    }
+                }
+        }
+    }
+
+    fun register(request: RegisterRequest) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
+            repository.register(request)
+                .onSuccess { user ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isAuthenticated = true,
+                            user = user,
+                            infoMessage = "Account created successfully"
+                        )
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = throwable.message ?: "Registration failed"
                         )
                     }
                 }

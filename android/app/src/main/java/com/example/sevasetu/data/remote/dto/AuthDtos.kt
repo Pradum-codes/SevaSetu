@@ -22,6 +22,26 @@ data class AuthResponse(
 
 data class UserDto(
     @SerializedName("id") val id: String,
+    @SerializedName("fullName") val fullName: String?,
     @SerializedName("email") val email: String,
+    @SerializedName("phoneNumber") val phoneNumber: String?,
+    @SerializedName("gender") val gender: String?,
+    @SerializedName("address") val address: String?,
+    @SerializedName("city") val city: String?,
+    @SerializedName("pinCode") val pinCode: String?,
+    @SerializedName("idType") val idType: String?,
+    @SerializedName("idNumber") val idNumber: String?,
     @SerializedName("createdAt") val createdAt: String?
+)
+
+data class RegisterRequest(
+    @SerializedName("fullName") val fullName: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("phoneNumber") val phoneNumber: String,
+    @SerializedName("gender") val gender: String,
+    @SerializedName("address") val address: String,
+    @SerializedName("city") val city: String,
+    @SerializedName("pinCode") val pinCode: String,
+    @SerializedName("idType") val idType: String,
+    @SerializedName("idNumber") val idNumber: String
 )
