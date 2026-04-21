@@ -206,7 +206,20 @@ const seedDepartments = async () => {
 };
 
 const seedCategories = async () => {
-  const categories = ['Road', 'Garbage', 'Water', 'Electricity', 'Streetlight'];
+  const categories = [
+    'Roads & Infrastructure',
+    'Street Lights & Electricity',
+    'Garbage & Cleanliness',
+    'Water Supply & Drainage',
+    'Traffic & Signals',
+    'Public Spaces & Environment',
+    'Public Safety & Health',
+    'Public Toilets & Sanitation',
+    'Public Transport Issues',
+    'Construction & Encroachment',
+    'Others'
+  ];
+  
   for (const name of categories) {
     await prisma.category.upsert({
       where: { name },

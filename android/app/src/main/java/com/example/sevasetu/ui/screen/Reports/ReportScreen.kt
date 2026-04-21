@@ -9,15 +9,25 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,15 +36,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.example.sevasetu.Dashboard
+import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.repository.IssueRepository
+import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 class ReportScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +72,42 @@ class ReportScreen : ComponentActivity() {
 @Composable
 fun MyReportsScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val isPreview = LocalInspectionMode.current
+    val issueRepository = remember(context) { IssueRepository(ApiService.issueApi(context)) }
+
+    var selectedFilter by rememberSaveable { mutableStateOf(ReportStatusFilter.ALL) }
+    var uiState by remember { mutableStateOf(ReportsUiState(isLoading = true)) }
+
+    val refreshReports: () -> Unit = {
+        if (isPreview) {
+            uiState = ReportsUiState(reports = previewReports())
+        } else {
+            scope.launch {
+                uiState = uiState.copy(isLoading = true, errorMessage = null)
+                issueRepository.getMyReportedIssues(
+                    page = 1,
+                    limit = 50,
+                    status = selectedFilter.apiValue
+                ).onSuccess { response ->
+                    uiState = ReportsUiState(
+                        isLoading = false,
+                        reports = response.issues.map { it.toReportListItem() }
+                    )
+                }.onFailure { throwable ->
+                    uiState = ReportsUiState(
+                        isLoading = false,
+                        errorMessage = throwable.message ?: "Unable to load reports"
+                    )
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(selectedFilter, isPreview) {
+        refreshReports()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -103,7 +159,7 @@ fun MyReportsScreen() {
                 NavigationBarItem(
                     selected = true,
                     onClick = { },
-                    icon = { Icon(Icons.Default.Assignment, contentDescription = "Reports") },
+                    icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00875A),
@@ -170,14 +226,23 @@ fun MyReportsScreen() {
 
                 // Filters
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val filters = listOf("ALL REPORTS" to true, "PENDING" to false, "IN PR..." to false)
-                    filters.forEach { (label, isSelected) ->
+                    ReportStatusFilter.entries.forEach { filter ->
+                        val isSelected = selectedFilter == filter
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) Color(0xFF006D47) else Color.White,
-                            modifier = Modifier.height(36.dp),
+                            modifier = Modifier
+                                .height(36.dp)
+                                .clickable {
+                                    if (selectedFilter != filter) {
+                                        selectedFilter = filter
+                                    }
+                                },
                             border = BorderStroke(1.dp, if (isSelected) Color(0xFF006D47) else Color(0xFFD1D5D3))
                         ) {
                             Box(
@@ -185,7 +250,7 @@ fun MyReportsScreen() {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = label,
+                                    text = filter.label,
                                     color = if (isSelected) Color.White else Color.Black,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
@@ -198,90 +263,67 @@ fun MyReportsScreen() {
                 Spacer(modifier = Modifier.height(28.dp))
             }
 
-            // Report Cards
-            val reports = listOf(
-                Triple("Garbage accumulation at Sector 14", "Oct 24, 2023", "PENDING"),
-                Triple("Broken street light flickering", "Oct 12, 2023", "RESOLVED"),
-                Triple("Deep pothole hazard near Metro", "Oct 05, 2023", "IN PROGRESS"),
-                Triple("Public park bench maintenance", "Sep 28, 2023", "RESOLVED")
-            )
-
-            items(reports) { (title, date, status) ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    border = BorderStroke(1.dp, Color(0xFFD1D5D3))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Image Placeholder
+            when {
+                uiState.isLoading -> {
+                    item {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFF0F0F0))
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Image,
-                                contentDescription = null,
-                                modifier = Modifier.align(Alignment.Center),
-                                tint = Color.LightGray
-                            )
+                            CircularProgressIndicator(color = Color(0xFF00875A))
                         }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = title,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black,
-                                lineHeight = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Reported $date",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            val (bgColor, txtColor, borderColor) = when (status) {
-                                "PENDING" -> Triple(Color(0xFFFFEBEE), Color(0xFFD32F2F), Color(0xFFFFCDD2))
-                                "RESOLVED" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFC8E6C9))
-                                "IN PROGRESS" -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), Color(0xFFB2DFDB))
-                                else -> Triple(Color.LightGray, Color.DarkGray, Color.Gray)
-                            }
-                            
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = bgColor,
-                                border = BorderStroke(1.dp, borderColor)
-                            ) {
-                                Text(
-                                    text = status,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = txtColor
-                                )
-                            }
-                        }
-                        
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = Color.LightGray,
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+
+                uiState.errorMessage != null -> {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = uiState.errorMessage.orEmpty(),
+                                    color = Color(0xFF2D2D2D),
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                TextButton(onClick = refreshReports) {
+                                    Text("Retry")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                uiState.reports.isEmpty() -> {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                        ) {
+                            Text(
+                                text = "No reports found for this filter.",
+                                modifier = Modifier.padding(20.dp),
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    items(uiState.reports, key = { it.id }) { report ->
+                        ReportIssueCard(report = report)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
             }
 
             item {
@@ -344,6 +386,184 @@ fun MyReportsScreen() {
             }
         }
     }
+}
+
+private enum class ReportStatusFilter(val label: String, val apiValue: String?) {
+    ALL("ALL REPORTS", null),
+    OPEN("OPEN", "OPEN"),
+    IN_PROGRESS("IN PROGRESS", "IN_PROGRESS"),
+    RESOLVED("RESOLVED", "RESOLVED"),
+    REJECTED("REJECTED", "REJECTED")
+}
+
+private data class ReportsUiState(
+    val isLoading: Boolean = false,
+    val reports: List<ReportListItem> = emptyList(),
+    val errorMessage: String? = null
+)
+
+private data class ReportListItem(
+    val id: String,
+    val title: String,
+    val reportedDateLabel: String,
+    val statusLabel: String,
+    val statusRaw: String,
+    val imageUrl: String?
+)
+
+@Composable
+private fun ReportIssueCard(report: ReportListItem) {
+    val (bgColor, txtColor, borderColor) = reportStatusColors(report.statusRaw)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, Color(0xFFD1D5D3))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFF0F0F0))
+            ) {
+                if (!report.imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = report.imageUrl,
+                        contentDescription = report.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Image,
+                        contentDescription = null,
+                        modifier = Modifier.align(Alignment.Center),
+                        tint = Color.LightGray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = report.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Reported ${report.reportedDateLabel}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = bgColor,
+                    border = BorderStroke(1.dp, borderColor)
+                ) {
+                    Text(
+                        text = report.statusLabel,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = txtColor
+                    )
+                }
+            }
+
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.LightGray,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+private fun reportStatusColors(status: String): Triple<Color, Color, Color> {
+    return when (status.uppercase(Locale.ROOT)) {
+        "OPEN" -> Triple(Color(0xFFFFEBEE), Color(0xFFD32F2F), Color(0xFFFFCDD2))
+        "RESOLVED" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFC8E6C9))
+        "IN_PROGRESS" -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), Color(0xFFB2DFDB))
+        "REJECTED" -> Triple(Color(0xFFFFF3E0), Color(0xFFEF6C00), Color(0xFFFFE0B2))
+        else -> Triple(Color.LightGray, Color.DarkGray, Color.Gray)
+    }
+}
+
+private fun IssueDto.toReportListItem(): ReportListItem {
+    val normalizedStatus = status?.uppercase(Locale.ROOT) ?: "OPEN"
+    return ReportListItem(
+        id = id,
+        title = title.ifBlank { "Untitled issue" },
+        reportedDateLabel = createdAt.toReportDateLabel(),
+        statusLabel = normalizedStatus.replace('_', ' '),
+        statusRaw = normalizedStatus,
+        imageUrl = resolvePreviewImageUrl()
+    )
+}
+
+private fun IssueDto.resolvePreviewImageUrl(): String? {
+    return images.firstNotNullOfOrNull { it.imageUrl?.trim()?.takeIf(String::isNotEmpty) }
+        ?: imageUrls?.firstNotNullOfOrNull { it.trim().takeIf(String::isNotEmpty) }
+        ?: imageUrl?.trim()?.takeIf(String::isNotEmpty)
+}
+
+private fun String?.toReportDateLabel(): String {
+    if (this.isNullOrBlank()) return "date unavailable"
+
+    val clean = trim()
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd"
+    )
+    val output = SimpleDateFormat("dd MMM, yyyy", Locale.US)
+
+    patterns.forEach { pattern ->
+        val parser = SimpleDateFormat(pattern, Locale.US).apply {
+            isLenient = false
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val date = runCatching { parser.parse(clean) }.getOrNull()
+        if (date != null) {
+            return output.format(date)
+        }
+    }
+
+    return clean.take(10)
+}
+
+private fun previewReports(): List<ReportListItem> {
+    return listOf(
+        ReportListItem(
+            id = "1",
+            title = "Garbage accumulation at Sector 14",
+            reportedDateLabel = "24 Oct, 2023",
+            statusLabel = "OPEN",
+            statusRaw = "OPEN",
+            imageUrl = null
+        ),
+        ReportListItem(
+            id = "2",
+            title = "Broken street light flickering",
+            reportedDateLabel = "12 Oct, 2023",
+            statusLabel = "RESOLVED",
+            statusRaw = "RESOLVED",
+            imageUrl = null
+        )
+    )
 }
 
 @Preview(showBackground = true, showSystemUi = true)

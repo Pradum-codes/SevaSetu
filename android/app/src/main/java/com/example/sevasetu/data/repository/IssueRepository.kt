@@ -2,6 +2,7 @@ package com.example.sevasetu.data.repository
 
 import com.example.sevasetu.data.remote.api.IssueApi
 import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
 import org.json.JSONObject
 
 class IssueRepository(
@@ -19,6 +20,29 @@ class IssueRepository(
             issues.filter { issue ->
                 issue.lat != null && issue.lng != null
             }
+        }
+    }
+
+    suspend fun getMyReportedIssues(
+        page: Int = 1,
+        limit: Int = 50,
+        status: String? = null
+    ): Result<ReportsIssuesResponse> {
+        return runCatching {
+            val safePage = page.coerceAtLeast(1)
+            val safeLimit = limit.coerceIn(1, 100)
+            val response = issueApi.getMyReportedIssues(
+                page = safePage,
+                limit = safeLimit,
+                status = status
+            )
+
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Failed to fetch reports (${response.code()})")
+            }
+
+            requireNotNull(response.body()) { "reports response body is null" }
         }
     }
 

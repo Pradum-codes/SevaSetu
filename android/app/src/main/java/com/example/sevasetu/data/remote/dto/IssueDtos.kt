@@ -6,9 +6,17 @@ data class NearbyIssuesResponse(
     @SerializedName("issues") val issues: List<IssueDto>
 )
 
+data class ReportsIssuesResponse(
+    @SerializedName("page") val page: Int,
+    @SerializedName("limit") val limit: Int,
+    @SerializedName("issues") val issues: List<IssueDto>
+)
+
 data class IssueDto(
     @SerializedName("id") val id: String,
     @SerializedName("title") val title: String,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("addressText") val addressText: String?,
     @SerializedName("lat") val lat: Double?,
     @SerializedName("lng") val lng: Double?,

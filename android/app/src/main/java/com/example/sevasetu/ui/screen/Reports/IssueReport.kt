@@ -38,6 +38,7 @@ import com.example.sevasetu.Dashboard
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import com.example.sevasetu.utils.CategoryConstants
 
 class IssueReport : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,22 +58,8 @@ fun IssueReportScreen() {
     val context = LocalContext.current
     val backPressedDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     var description by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Roads & Infrastructure") }
+    var selectedCategoryId by remember { mutableStateOf(CategoryConstants.ROADS_INFRASTRUCTURE_ID) }
     var expanded by remember { mutableStateOf(false) }
-
-    val categories = listOf(
-        "Roads & Infrastructure",
-        "Street Lights & Electricity",
-        "Garbage & Cleanliness",
-        "Water Supply & Drainage",
-        "Traffic & Signals",
-        "Public Spaces & Environment",
-        "Public Safety & Health",
-        "Public Toilets & Sanitation",
-        "Public Transport Issues",
-        "Construction & Encroachment",
-        "Others"
-    )
 
     Scaffold(
         topBar = {
@@ -315,7 +302,7 @@ fun IssueReportScreen() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = selectedCategory,
+                                text = CategoryConstants.getCategoryName(selectedCategoryId) ?: "Select Category",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF1A1C1A)
@@ -335,11 +322,11 @@ fun IssueReportScreen() {
                         onDismissRequest = { expanded = false },
                         modifier = Modifier.background(Color.White)
                     ) {
-                        categories.forEach { category ->
+                        CategoryConstants.CATEGORIES.forEach { category ->
                             DropdownMenuItem(
-                                text = { Text(category) },
+                                text = { Text(category.name) },
                                 onClick = {
-                                    selectedCategory = category
+                                    selectedCategoryId = category.id
                                     expanded = false
                                 },
                                 contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
