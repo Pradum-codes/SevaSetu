@@ -11,7 +11,7 @@ export default async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        aadhaarNumber: true,
+        idNumber: true,
         addressDistrict: true,
         addressAreaType: true,
         addressCityOrPanchayat: true,
@@ -24,7 +24,7 @@ export default async (req, res, next) => {
     }
 
     if (
-      !user.aadhaarNumber ||
+      !user.idNumber ||
       !user.addressDistrict ||
       !user.addressAreaType ||
       !user.addressCityOrPanchayat ||
@@ -32,7 +32,7 @@ export default async (req, res, next) => {
     ) {
       return res.status(403).json({
         error:
-          'Complete profile with structured address and Aadhaar number before posting an issue'
+          'Complete profile with structured address and ID number before posting an issue'
       });
     }
 

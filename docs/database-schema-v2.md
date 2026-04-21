@@ -44,7 +44,7 @@ Hierarchical administrative structure for geographic organization.
 |--------|------|-------------|
 | id | UUID | PK |
 | name | String | NOT NULL |
-| type | Enum | STATE, DISTRICT, CITY, ZONE, WARD, PANCHAYAT |
+| type | Enum | STATE, DISTRICT, CITY, WARD, PANCHAYAT |
 | category | Enum | URBAN, RURAL |
 | parentId | UUID | FK → Jurisdiction (self-referential) |
 | pincode | String | OPTIONAL |

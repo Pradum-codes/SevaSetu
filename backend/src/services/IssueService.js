@@ -160,7 +160,6 @@ const requireJurisdiction = async (id, expectedType, fieldName) => {
 const resolveIssueJurisdiction = async (payload) => {
   const districtId = toOptionalTrimmedString(payload?.districtId || payload?.district);
   const cityId = toOptionalTrimmedString(payload?.cityId || payload?.city);
-  const zoneId = toOptionalTrimmedString(payload?.zoneId || payload?.zone);
   const wardId = toOptionalTrimmedString(payload?.wardId || payload?.ward);
   const blockId = toOptionalTrimmedString(payload?.blockId || payload?.block);
   const panchayatId = toOptionalTrimmedString(payload?.panchayatId || payload?.panchayat);
@@ -185,20 +184,8 @@ const resolveIssueJurisdiction = async (payload) => {
       throw new IssueServiceError('cityId must belong to the provided districtId');
     }
 
-    let expectedWardParentId = city.id;
-    if (zoneId) {
-      const zone = await requireJurisdiction(zoneId, 'ZONE', 'zoneId');
-      if (zone.parentId !== city.id) {
-        throw new IssueServiceError('zoneId must belong to the provided cityId');
-      }
-      expectedWardParentId = zone.id;
-    }
-
     const ward = await requireJurisdiction(wardId, 'WARD', 'wardId');
-    if (ward.parentId !== expectedWardParentId) {
-      if (zoneId) {
-        throw new IssueServiceError('wardId must belong to the provided zoneId');
-      }
+    if (ward.parentId !== city.id) {
       throw new IssueServiceError('wardId must belong to the provided cityId');
     }
 
@@ -210,8 +197,8 @@ const resolveIssueJurisdiction = async (payload) => {
     if (!panchayatId) {
       throw new IssueServiceError('panchayatId is required for rural districts');
     }
-    if (hasValue(cityId) || hasValue(zoneId) || hasValue(wardId)) {
-      throw new IssueServiceError('cityId, zoneId, and wardId are not allowed for rural districts');
+    if (hasValue(cityId) || hasValue(wardId)) {
+      throw new IssueServiceError('cityId and wardId are not allowed for rural districts');
     }
 
     const block = await requireJurisdiction(blockId, 'BLOCK', 'blockId');

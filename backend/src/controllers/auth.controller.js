@@ -42,7 +42,7 @@ const hasCoordinates = (user) =>
 const getRegistrationStatus = (user) => ({
   onboardingCompleted: Boolean(user?.name && user?.email && user?.phone),
   profileCompleted: Boolean(
-    user?.aadhaarNumber &&
+    user?.idNumber &&
       user?.addressDistrict &&
       user?.addressAreaType &&
       user?.addressCityOrPanchayat &&

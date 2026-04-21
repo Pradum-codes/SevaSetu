@@ -10,19 +10,16 @@ const IDS = {
   // Amritsar (Urban)
   amritsarDistrict: '20000001-0000-0000-0000-000000000000',
   amritsarCity: '20000001-1000-0000-0000-000000000000',
-  amritsarZone: '20000001-1100-0000-0000-000000000000',
   amritsarWard: '20000001-1110-0000-0000-000000000000',
 
   // Ludhiana (Urban)
-  ludbianaDistrict: '20000002-0000-0000-0000-000000000000',
+  ludhianaDistrict: '20000002-0000-0000-0000-000000000000',
   ludhianaCity: '20000002-1000-0000-0000-000000000000',
-  ludhianaZone: '20000002-1100-0000-0000-000000000000',
   ludhianaWard: '20000002-1110-0000-0000-000000000000',
 
   // Jalandhar (Urban)
   jalandharDistrict: '20000003-0000-0000-0000-000000000000',
   jalandharCity: '20000003-1000-0000-0000-000000000000',
-  jalandharZone: '20000003-1100-0000-0000-000000000000',
   jalandharWard: '20000003-1110-0000-0000-000000000000',
 
   // Hoshiarpur (Rural)
@@ -31,9 +28,9 @@ const IDS = {
   hoshiarpurPanchayat: '20000004-2100-0000-0000-000000000000',
 
   // Sangrur (Rural)
-  sangurDistrict: '20000005-0000-0000-0000-000000000000',
-  sangurBlock: '20000005-2000-0000-0000-000000000000',
-  sangurPanchayat: '20000005-2100-0000-0000-000000000000'
+  sangrurDistrict: '20000005-0000-0000-0000-000000000000',
+  sangrurBlock: '20000005-2000-0000-0000-000000000000',
+  sangrurPanchayat: '20000005-2100-0000-0000-000000000000'
 };
 
 const seedRoles = async () => {
@@ -89,24 +86,16 @@ const seedJurisdictions = async () => {
   });
 
   await upsertJurisdiction({
-    id: IDS.amritsarZone,
-    name: 'Amritsar Zone 1',
-    type: 'ZONE',
-    category: 'URBAN',
-    parentId: IDS.amritsarCity
-  });
-
-  await upsertJurisdiction({
     id: IDS.amritsarWard,
     name: 'Amritsar Ward 5',
     type: 'WARD',
     category: 'URBAN',
-    parentId: IDS.amritsarZone
+    parentId: IDS.amritsarCity
   });
 
   // ============ LUDHIANA (URBAN) ============
   await upsertJurisdiction({
-    id: IDS.ludbianaDistrict,
+    id: IDS.ludhianaDistrict,
     name: 'Ludhiana District',
     type: 'DISTRICT',
     category: 'URBAN',
@@ -118,15 +107,7 @@ const seedJurisdictions = async () => {
     name: 'Ludhiana City',
     type: 'CITY',
     category: 'URBAN',
-    parentId: IDS.ludbianaDistrict
-  });
-
-  await upsertJurisdiction({
-    id: IDS.ludhianaZone,
-    name: 'Ludhiana Zone 2',
-    type: 'ZONE',
-    category: 'URBAN',
-    parentId: IDS.ludhianaCity
+    parentId: IDS.ludhianaDistrict
   });
 
   await upsertJurisdiction({
@@ -134,7 +115,7 @@ const seedJurisdictions = async () => {
     name: 'Ludhiana Ward 8',
     type: 'WARD',
     category: 'URBAN',
-    parentId: IDS.ludhianaZone
+    parentId: IDS.ludhianaCity
   });
 
   // ============ JALANDHAR (URBAN) ============
@@ -155,19 +136,11 @@ const seedJurisdictions = async () => {
   });
 
   await upsertJurisdiction({
-    id: IDS.jalandharZone,
-    name: 'Jalandhar Zone 1',
-    type: 'ZONE',
-    category: 'URBAN',
-    parentId: IDS.jalandharCity
-  });
-
-  await upsertJurisdiction({
     id: IDS.jalandharWard,
     name: 'Jalandhar Ward 12',
     type: 'WARD',
     category: 'URBAN',
-    parentId: IDS.jalandharZone
+    parentId: IDS.jalandharCity
   });
 
   // ============ HOSHIARPUR (RURAL) ============
@@ -197,7 +170,7 @@ const seedJurisdictions = async () => {
 
   // ============ SANGRUR (RURAL) ============
   await upsertJurisdiction({
-    id: IDS.sangurDistrict,
+    id: IDS.sangrurDistrict,
     name: 'Sangrur District',
     type: 'DISTRICT',
     category: 'RURAL',
@@ -205,19 +178,19 @@ const seedJurisdictions = async () => {
   });
 
   await upsertJurisdiction({
-    id: IDS.sangurBlock,
+    id: IDS.sangrurBlock,
     name: 'Sangrur Block',
     type: 'BLOCK',
     category: 'RURAL',
-    parentId: IDS.sangurDistrict
+    parentId: IDS.sangrurDistrict
   });
 
   await upsertJurisdiction({
-    id: IDS.sangurPanchayat,
+    id: IDS.sangrurPanchayat,
     name: 'Sangrur Panchayat',
     type: 'PANCHAYAT',
     category: 'RURAL',
-    parentId: IDS.sangurBlock
+    parentId: IDS.sangrurBlock
   });
 };
 
@@ -244,6 +217,9 @@ const seedCategories = async () => {
 };
 
 const main = async () => {
+  // Clear old hierarchy records that we no longer use
+  await prisma.jurisdiction.deleteMany({ where: { type: 'ZONE' } });
+
   await seedRoles();
   await seedJurisdictions();
   await seedDepartments();
@@ -259,19 +235,16 @@ const main = async () => {
   console.log('AMRITSAR DISTRICT (URBAN):');
   console.log(`districtId=${IDS.amritsarDistrict}`);
   console.log(`cityId=${IDS.amritsarCity}`);
-  console.log(`zoneId=${IDS.amritsarZone}`);
   console.log(`wardId=${IDS.amritsarWard}\n`);
 
   console.log('LUDHIANA DISTRICT (URBAN):');
-  console.log(`districtId=${IDS.ludbianaDistrict}`);
+  console.log(`districtId=${IDS.ludhianaDistrict}`);
   console.log(`cityId=${IDS.ludhianaCity}`);
-  console.log(`zoneId=${IDS.ludhianaZone}`);
   console.log(`wardId=${IDS.ludhianaWard}\n`);
 
   console.log('JALANDHAR DISTRICT (URBAN):');
   console.log(`districtId=${IDS.jalandharDistrict}`);
   console.log(`cityId=${IDS.jalandharCity}`);
-  console.log(`zoneId=${IDS.jalandharZone}`);
   console.log(`wardId=${IDS.jalandharWard}\n`);
 
   console.log('HOSHIARPUR DISTRICT (RURAL):');
@@ -280,9 +253,9 @@ const main = async () => {
   console.log(`panchayatId=${IDS.hoshiarpurPanchayat}\n`);
 
   console.log('SANGRUR DISTRICT (RURAL):');
-  console.log(`districtId=${IDS.sangurDistrict}`);
-  console.log(`blockId=${IDS.sangurBlock}`);
-  console.log(`panchayatId=${IDS.sangurPanchayat}\n`);
+  console.log(`districtId=${IDS.sangrurDistrict}`);
+  console.log(`blockId=${IDS.sangrurBlock}`);
+  console.log(`panchayatId=${IDS.sangrurPanchayat}\n`);
 
   const categories = await prisma.category.findMany({
     orderBy: { id: 'asc' },

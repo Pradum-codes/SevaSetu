@@ -65,7 +65,6 @@ Urban example:
   "priority": "medium",
   "districtId": "district-uuid",
   "cityId": "city-uuid",
-  "zoneId": "optional-zone-uuid",
   "wardId": "ward-uuid"
 }
 ```
@@ -101,7 +100,7 @@ Rural example:
 - Coordinates are optional, but if sent then both `lat` and `lng` are required together.
 - `districtId` is required and must be a valid `DISTRICT`.
 - Backend reads district category to decide branch:
-  - `URBAN`: `cityId` and `wardId` required (`zoneId` optional).
+  - `URBAN`: `cityId` and `wardId` required.
   - `RURAL`: `blockId` and `panchayatId` required.
 - Urban and rural fields cannot be mixed in one request.
 - Backend derives and stores final `jurisdictionId` from the validated hierarchy.
@@ -416,7 +415,7 @@ Authorization: Bearer <jwt_token>
 - `lat/lng`: optional; if one is sent, both are required; valid bounds apply
 - `priority`: optional, `low | normal | medium | high` (default `medium` => `NORMAL`)
 - `districtId`: required, must reference a `DISTRICT`
-- Urban districts: `cityId` + `wardId` required (`zoneId` optional)
+- Urban districts: `cityId` + `wardId` required
 - Rural districts: `blockId` + `panchayatId` required
 - `jurisdictionId` is derived server-side from the chain and returned in response
 
