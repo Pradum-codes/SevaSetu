@@ -46,6 +46,9 @@ import com.example.sevasetu.Login
 import com.example.sevasetu.R
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.net.HttpURLConnection
+import java.net.URL
 
 class SplashScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +71,22 @@ fun SplashScreenContent(onNavigate: () -> Unit) {
     val logoAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
+        launch {
+            try {
+                val url = URL("https://sevasetu-zqa6.onrender.com/")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 3000
+                connection.readTimeout = 3000
+                connection.connect()
+
+                connection.inputStream.close()
+                connection.disconnect()
+            } catch (e: Exception) {
+                // Ignore errors (server might still be waking up)
+            }
+        }
+
         logoAlpha.animateTo(1f, animationSpec = tween(1200))
         logoScale.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
         delay(3000)

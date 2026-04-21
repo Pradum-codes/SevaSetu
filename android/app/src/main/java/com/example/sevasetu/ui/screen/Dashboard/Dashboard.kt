@@ -1,25 +1,38 @@
 package com.example.sevasetu
 
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material3.Button
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,15 +41,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
+import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.repository.IssueRepository
+import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import kotlinx.coroutines.launch
+import org.osmdroid.config.Configuration as OsmConfiguration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import android.graphics.Color as AndroidColor
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.createBitmap
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 
 class Dashboard : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,6 +82,30 @@ class Dashboard : ComponentActivity() {
 @Composable
 fun DashboardScreen() {
     val context = LocalContext.current
+    val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
+    val scope = rememberCoroutineScope()
+    var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
+
+    val fetchNearbyIssues: () -> Unit = {
+        scope.launch {
+            mapUiState = MapUiState.Loading
+            issueRepository.getNearbyIssues(DEFAULT_NEARBY_DISTRICT_ID)
+                .onSuccess { issues ->
+                    val mapIssues = issues.mapNotNull { it.toMapIssue() }
+                    mapUiState = MapUiState.Success(mapIssues)
+                }
+                .onFailure { throwable ->
+                    mapUiState = MapUiState.Error(
+                        throwable.message ?: "Unable to load nearby issues"
+                    )
+                }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        fetchNearbyIssues()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -111,7 +163,7 @@ fun DashboardScreen() {
                     onClick = {
                         context.startActivity(Intent(context, ReportScreen::class.java))
                     },
-                    icon = { Icon(Icons.Default.Assignment, contentDescription = "Reports") },
+                    icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
                 )
                 NavigationBarItem(
@@ -177,80 +229,10 @@ fun DashboardScreen() {
 
             Spacer(Modifier.height(16.dp))
 
-            // Map Area Placeholder
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFFA5D6A7)) // Light green map-like background
-            ) {
-                // Map markers placeholder
-                Icon(
-                    Icons.Default.Place,
-                    contentDescription = null,
-                    tint = Color(0xFF00875A),
-                    modifier = Modifier.align(Alignment.Center).offset(y = (-20).dp)
-                )
-                Icon(
-                    Icons.Default.ReportProblem,
-                    contentDescription = null,
-                    tint = Color.Red,
-                    modifier = Modifier.align(Alignment.Center).offset(x = 60.dp, y = 10.dp)
-                )
-                Icon(
-                    Icons.Default.ReportProblem,
-                    contentDescription = null,
-                    tint = Color.Red,
-                    modifier = Modifier.align(Alignment.Center).offset(x = (-60).dp, y = 40.dp)
-                )
-
-                // Community Pulse Info Box
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White.copy(alpha = 0.9f)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Community Pulse", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("Live updates from your sector", fontSize = 10.sp, color = Color.Gray)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF00875A)))
-                            Spacer(Modifier.width(4.dp))
-                            Text("12 RESOLVED", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.width(8.dp))
-                            Box(Modifier.size(6.dp).clip(CircleShape).background(Color.Red))
-                            Spacer(Modifier.width(4.dp))
-                            Text("5 ACTIVE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                // Zoom Buttons
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                ) {
-                    FloatingActionButton(
-                        onClick = { },
-                        containerColor = Color.White,
-                        contentColor = Color.Gray,
-                        modifier = Modifier.size(40.dp),
-                        shape = CircleShape
-                    ) { Icon(Icons.Default.Add, contentDescription = null) }
-                    Spacer(Modifier.height(8.dp))
-                    FloatingActionButton(
-                        onClick = { },
-                        containerColor = Color.White,
-                        contentColor = Color.Gray,
-                        modifier = Modifier.size(40.dp),
-                        shape = CircleShape
-                    ) { Icon(Icons.Default.Remove, contentDescription = null) }
-                }
-            }
+            DashboardMapSection(
+                mapUiState = mapUiState,
+                onRetry = fetchNearbyIssues
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -344,45 +326,327 @@ fun DashboardScreen() {
                 Text("Nearby Issues", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 TextButton(onClick = { }) {
                     Text("View All", color = Color.Gray)
-                    Icon(Icons.Default.ArrowForward, contentDescription = null, size = 16.sp, tint = Color.Gray)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, size = 16.sp, tint = Color.Gray)
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Issue Cards
-            IssueCard(
-                title = "Garbage Overflow near Park",
-                time = "2h ago",
-                desc = "The central bin near Sector 5 Park entrance is overflowing and attracting strays. Needs urge...",
-                location = "Sector 5, Main Gate",
-                status = "PENDING",
-                statusColor = Color(0xFFFFEBEE),
-                statusTextColor = Color(0xFFD32F2F)
-            )
-            Spacer(Modifier.height(16.dp))
-            IssueCard(
-                title = "Non-functional Streetlight",
-                time = "5h ago",
-                desc = "Three lights in a row are out on Avenue 12. Unsafe for pedestrians at night.",
-                location = "Avenue 12, West Side",
-                status = "IN PROGRESS",
-                statusColor = Color(0xFFE3F2FD),
-                statusTextColor = Color(0xFF1976D2)
-            )
-            Spacer(Modifier.height(16.dp))
-            IssueCard(
-                title = "Major Pothole Fixed",
-                time = "1d ago",
-                desc = "The deep pothole on MG Road has been filled and leveled. Traffic flow is now back to normal.",
-                location = "MG Road, Intersection",
-                status = "RESOLVED",
-                statusColor = Color(0xFFE8F5E9),
-                statusTextColor = Color(0xFF388E3C)
+            NearbyIssuesListSection(
+                mapUiState = mapUiState,
+                onRetry = fetchNearbyIssues
             )
         }
     }
 }
+
+@Composable
+private fun NearbyIssuesListSection(
+    mapUiState: MapUiState,
+    onRetry: () -> Unit
+) {
+    when (mapUiState) {
+        MapUiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF00875A))
+            }
+        }
+
+        is MapUiState.Error -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = mapUiState.message,
+                        color = Color(0xFF2D2D2D),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+        }
+
+        is MapUiState.Success -> {
+            if (mapUiState.issues.isEmpty()) {
+                Text(
+                    text = "No nearby issues available right now.",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                return
+            }
+
+            mapUiState.issues.forEachIndexed { index, issue ->
+                val (statusContainerColor, statusTextColor) = statusColorsForPriority(issue.priority)
+                val status = statusLabelForPriority(issue.priority)
+
+                IssueCard(
+                    title = issue.title,
+                    time = "Nearby",
+                    desc = "Community reported issue in your area.",
+                    location = issue.addressText ?: "Location unavailable",
+                    imageUrl = issue.imageUrl,
+                    status = status,
+                    statusColor = statusContainerColor,
+                    statusTextColor = statusTextColor
+                )
+
+                if (index != mapUiState.issues.lastIndex) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardMapSection(
+    mapUiState: MapUiState,
+    onRetry: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+            .clip(RoundedCornerShape(24.dp))
+    ) {
+        when (mapUiState) {
+            MapUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFE8F5E9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF00875A))
+                }
+            }
+
+            is MapUiState.Error -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFE8F5E9))
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = mapUiState.message,
+                        color = Color(0xFF2D2D2D),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = onRetry) {
+                        Text("Retry")
+                    }
+                }
+            }
+
+            is MapUiState.Success -> {
+                NearbyIssuesMap(
+                    issues = mapUiState.issues,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.92f)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Community Pulse",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "${mapUiState.issues.size} nearby issues mapped",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NearbyIssuesMap(
+    issues: List<MapIssue>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val mapView = remember {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
+        OsmConfiguration.getInstance().load(appContext, prefs)
+        OsmConfiguration.getInstance().userAgentValue = appContext.packageName
+
+        MapView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setTileSource(TileSourceFactory.MAPNIK)
+            setMultiTouchControls(true)
+            controller.setZoom(12.0)
+        }
+    }
+    DisposableEffect(mapView) {
+        onDispose {
+            mapView.onDetach()
+        }
+    }
+
+    AndroidView(
+        factory = { mapView },
+        modifier = modifier
+            .pointerInteropFilter { event ->
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN,
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        mapView.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        mapView.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+                false
+            },
+        update = { view ->
+            view.overlays.clear()
+
+            val points = issues.map { issue ->
+                GeoPoint(issue.lat, issue.lng)
+            }
+            val center = points.firstOrNull() ?: GeoPoint(23.2599, 77.4126)
+            view.controller.setCenter(center)
+
+            issues.forEach { issue ->
+                val marker = Marker(view).apply {
+                    position = GeoPoint(issue.lat, issue.lng)
+                    title = issue.title
+                    subDescription = issue.addressText ?: "Nearby issue"
+                    icon = createMarkerIcon(
+                        context = context,
+                        fillColor = markerColorForPriority(issue.priority)
+                    )
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                }
+                view.overlays.add(marker)
+            }
+            view.invalidate()
+        }
+    )
+}
+
+private fun createMarkerIcon(
+    context: android.content.Context,
+    fillColor: Int
+): BitmapDrawable {
+    val size = 72
+    val radius = 18f
+    val cx = size / 2f
+    val cy = size / 2f
+
+    val bitmap = createBitmap(size, size)
+    val canvas = Canvas(bitmap)
+    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = fillColor
+    }
+    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = AndroidColor.WHITE
+        strokeWidth = 6f
+    }
+
+    canvas.drawCircle(cx, cy, radius, fillPaint)
+    canvas.drawCircle(cx, cy, radius, strokePaint)
+
+    return bitmap.toDrawable(context.resources)
+}
+
+private fun markerColorForPriority(priority: String?): Int {
+    return when (priority?.uppercase()) {
+        "HIGH" -> "#D32F2F".toColorInt()
+        "LOW" -> "#2E7D32".toColorInt()
+        else -> "#F57C00".toColorInt()
+    }
+}
+
+private fun statusColorsForPriority(priority: String?): Pair<Color, Color> {
+    return when (priority?.uppercase()) {
+        "HIGH" -> Color(0xFFFFEBEE) to Color(0xFFD32F2F)
+        "LOW" -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
+        else -> Color(0xFFFFF8E1) to Color(0xFFEF6C00)
+    }
+}
+
+private fun statusLabelForPriority(priority: String?): String {
+    return when (priority?.uppercase()) {
+        "HIGH" -> "HIGH"
+        "LOW" -> "LOW"
+        else -> "MEDIUM"
+    }
+}
+
+private fun IssueDto.toMapIssue(): MapIssue? {
+    val issueLat = lat ?: return null
+    val issueLng = lng ?: return null
+
+    return MapIssue(
+        id = id,
+        title = title.ifBlank { "Issue" },
+        addressText = addressText,
+        lat = issueLat,
+        lng = issueLng,
+        imageUrl = resolvePreviewImageUrl(),
+        priority = priority
+    )
+}
+
+private fun IssueDto.resolvePreviewImageUrl(): String? {
+    // API typically sends images as objects: images[].imageUrl.
+    return images.firstNotNullOfOrNull { it.imageUrl?.trim()?.takeIf(String::isNotEmpty) }
+        ?: imageUrls?.firstNotNullOfOrNull { it.trim().takeIf(String::isNotEmpty) }
+        ?: imageUrl?.trim()?.takeIf(String::isNotEmpty)
+}
+
+private sealed interface MapUiState {
+    data object Loading : MapUiState
+    data class Success(val issues: List<MapIssue>) : MapUiState
+    data class Error(val message: String) : MapUiState
+}
+
+private data class MapIssue(
+    val id: String,
+    val title: String,
+    val addressText: String?,
+    val lat: Double,
+    val lng: Double,
+    val imageUrl: String?,
+    val priority: String?
+)
+
+private const val DEFAULT_NEARBY_DISTRICT_ID = "22222222-2222-2222-2222-222222222222"
 
 @Composable
 fun CategoryChip(label: String, icon: ImageVector) {
@@ -408,6 +672,7 @@ fun IssueCard(
     time: String,
     desc: String,
     location: String,
+    imageUrl: String?,
     status: String,
     statusColor: Color,
     statusTextColor: Color
@@ -425,8 +690,22 @@ fun IssueCard(
                     .height(150.dp)
                     .background(Color.LightGray)
             ) {
-                // Placeholder for Issue Image
-                Text("Image Placeholder", modifier = Modifier.align(Alignment.Center), color = Color.Gray)
+                if (!imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Placeholder for issues without images
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No Image Available", color = Color.Gray)
+                    }
+                }
                 
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
