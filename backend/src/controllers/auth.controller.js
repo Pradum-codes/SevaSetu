@@ -156,40 +156,72 @@ export const verifyOtp = async (req, res) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const name = toTrimmedString(req.body?.fullName);
+    // Extract and validate fields from request
+    const name = toTrimmedString(req.body?.name);
     const email = req.body?.email?.trim()?.toLowerCase();
-    const phone = toTrimmedString(req.body?.phoneNumber);
+    const phone = toTrimmedString(req.body?.phone);
     const gender = toOptionalTrimmedString(req.body?.gender);
     const idType = toOptionalTrimmedString(req.body?.idType);
     const idNumber = toOptionalTrimmedString(req.body?.idNumber);
-    const addressText = toOptionalTrimmedString(req.body?.address);
-    const city = toOptionalTrimmedString(req.body?.city);
+    
+    // Jurisdiction fields
+    const jurisdictionId = toOptionalTrimmedString(req.body?.jurisdictionId);
+    const addressDistrict = toOptionalTrimmedString(req.body?.addressDistrict);
+    const addressAreaType = toOptionalTrimmedString(req.body?.addressAreaType);
+    const addressCity = toOptionalTrimmedString(req.body?.addressCity);
+    const addressWard = toOptionalTrimmedString(req.body?.addressWard);
+    const addressBlock = toOptionalTrimmedString(req.body?.addressBlock);
+    const addressPanchayat = toOptionalTrimmedString(req.body?.addressPanchayat);
+    const addressLocality = toOptionalTrimmedString(req.body?.addressLocality);
+    const addressLandmark = toOptionalTrimmedString(req.body?.addressLandmark);
+    const addressText = toOptionalTrimmedString(req.body?.addressText);
     const pinCode = toOptionalTrimmedString(req.body?.pinCode);
 
     // Validate required fields
     const fieldErrors = [];
-    if (!name) fieldErrors.push('fullName is required');
+    if (!name) fieldErrors.push('name is required');
     if (!isEmailValid(email)) fieldErrors.push('valid email is required');
     if (!isPhoneValid(phone)) fieldErrors.push('10-digit phone number is required');
     if (!gender) fieldErrors.push('gender is required');
     if (!idType) fieldErrors.push('idType is required');
     if (!idNumber) fieldErrors.push('idNumber is required');
-    if (!addressText) fieldErrors.push('address is required');
-    if (!city) fieldErrors.push('city is required');
+    if (!jurisdictionId) fieldErrors.push('jurisdictionId is required');
+    if (!addressDistrict) fieldErrors.push('addressDistrict is required');
+    if (!addressAreaType) fieldErrors.push('addressAreaType is required');
+    if (!isAreaTypeValid(addressAreaType)) fieldErrors.push('addressAreaType must be URBAN or RURAL');
+    if (!addressText) fieldErrors.push('addressText is required');
     if (!pinCode) fieldErrors.push('pinCode is required');
 
     if (fieldErrors.length > 0) {
       return res.status(400).json({
-        error: 'All fields are required',
+        error: 'All required fields must be provided',
         details: fieldErrors
       });
     }
 
+    // Validate jurisdiction hierarchy based on area type
+    if (addressAreaType === 'URBAN') {
+      if (!addressCity) fieldErrors.push('addressCity is required for URBAN area');
+      if (!addressWard) fieldErrors.push('addressWard is required for URBAN area');
+    } else if (addressAreaType === 'RURAL') {
+      if (!addressBlock) fieldErrors.push('addressBlock is required for RURAL area');
+      if (!addressPanchayat) fieldErrors.push('addressPanchayat is required for RURAL area');
+    }
+
+    if (fieldErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Invalid jurisdiction hierarchy',
+        details: fieldErrors
+      });
+    }
+
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(409).json({ error: 'User already exists. Please login' });
     }
 
+    // Create user with all jurisdiction data
     const user = await prisma.user.create({
       data: {
         name,
@@ -198,15 +230,32 @@ export const registerUser = async (req, res) => {
         gender,
         idType,
         idNumber,
+        jurisdictionId,
+        addressDistrict,
+        addressAreaType: addressAreaType === 'URBAN' ? 'URBAN' : 'RURAL',
+        addressWard: addressAreaType === 'URBAN' ? addressWard : null,
+        addressCityOrPanchayat: addressAreaType === 'URBAN' ? addressCity : addressPanchayat,
+        addressLocality,
+        addressLandmark,
         addressText,
-        addressCityOrPanchayat: city,
         pinCode
       }
     });
 
     return res.json({
       message: 'Registration completed successfully. Please verify OTP to login',
-      user,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        gender: user.gender,
+        idType: user.idType,
+        idNumber: user.idNumber,
+        addressText: user.addressText,
+        addressCityOrPanchayat: user.addressCityOrPanchayat,
+        pinCode: user.pinCode
+      },
       registrationStatus: getRegistrationStatus(user)
     });
   } catch (error) {

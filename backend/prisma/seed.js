@@ -2,15 +2,38 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Punjab State + 5 Districts (3 Urban, 2 Rural) with their hierarchies
 const IDS = {
-  state: '11111111-1111-1111-1111-111111111111',
-  urbanDistrict: '22222222-2222-2222-2222-222222222222',
-  urbanCity: '33333333-3333-3333-3333-333333333333',
-  urbanZone: '44444444-4444-4444-4444-444444444444',
-  urbanWard: '55555555-5555-5555-5555-555555555555',
-  ruralDistrict: '66666666-6666-6666-6666-666666666666',
-  ruralBlock: '77777777-7777-7777-7777-777777777777',
-  ruralPanchayat: '88888888-8888-8888-8888-888888888888'
+  // State
+  punjabState: '10000000-0000-0000-0000-000000000000',
+
+  // Amritsar (Urban)
+  amritsarDistrict: '20000001-0000-0000-0000-000000000000',
+  amritsarCity: '20000001-1000-0000-0000-000000000000',
+  amritsarZone: '20000001-1100-0000-0000-000000000000',
+  amritsarWard: '20000001-1110-0000-0000-000000000000',
+
+  // Ludhiana (Urban)
+  ludbianaDistrict: '20000002-0000-0000-0000-000000000000',
+  ludhianaCity: '20000002-1000-0000-0000-000000000000',
+  ludhianaZone: '20000002-1100-0000-0000-000000000000',
+  ludhianaWard: '20000002-1110-0000-0000-000000000000',
+
+  // Jalandhar (Urban)
+  jalandharDistrict: '20000003-0000-0000-0000-000000000000',
+  jalandharCity: '20000003-1000-0000-0000-000000000000',
+  jalandharZone: '20000003-1100-0000-0000-000000000000',
+  jalandharWard: '20000003-1110-0000-0000-000000000000',
+
+  // Hoshiarpur (Rural)
+  hoshiarpurDistrict: '20000004-0000-0000-0000-000000000000',
+  hoshiarpurBlock: '20000004-2000-0000-0000-000000000000',
+  hoshiarpurPanchayat: '20000004-2100-0000-0000-000000000000',
+
+  // Sangrur (Rural)
+  sangurDistrict: '20000005-0000-0000-0000-000000000000',
+  sangurBlock: '20000005-2000-0000-0000-000000000000',
+  sangurPanchayat: '20000005-2100-0000-0000-000000000000'
 };
 
 const seedRoles = async () => {
@@ -40,67 +63,161 @@ const upsertJurisdiction = async ({ id, name, type, category, parentId = null, p
 };
 
 const seedJurisdictions = async () => {
+  // Create Punjab State
   await upsertJurisdiction({
-    id: IDS.state,
-    name: 'Madhya Pradesh',
+    id: IDS.punjabState,
+    name: 'Punjab',
     type: 'STATE',
     category: 'URBAN'
   });
 
+  // ============ AMRITSAR (URBAN) ============
   await upsertJurisdiction({
-    id: IDS.urbanDistrict,
-    name: 'Bhopal District',
+    id: IDS.amritsarDistrict,
+    name: 'Amritsar District',
     type: 'DISTRICT',
     category: 'URBAN',
-    parentId: IDS.state
+    parentId: IDS.punjabState
   });
 
   await upsertJurisdiction({
-    id: IDS.urbanCity,
-    name: 'Bhopal City',
+    id: IDS.amritsarCity,
+    name: 'Amritsar City',
     type: 'CITY',
     category: 'URBAN',
-    parentId: IDS.urbanDistrict
+    parentId: IDS.amritsarDistrict
   });
 
   await upsertJurisdiction({
-    id: IDS.urbanZone,
-    name: 'Zone 1',
+    id: IDS.amritsarZone,
+    name: 'Amritsar Zone 1',
     type: 'ZONE',
     category: 'URBAN',
-    parentId: IDS.urbanCity
+    parentId: IDS.amritsarCity
   });
 
   await upsertJurisdiction({
-    id: IDS.urbanWard,
-    name: 'Ward 12',
+    id: IDS.amritsarWard,
+    name: 'Amritsar Ward 5',
     type: 'WARD',
     category: 'URBAN',
-    parentId: IDS.urbanZone
+    parentId: IDS.amritsarZone
+  });
+
+  // ============ LUDHIANA (URBAN) ============
+  await upsertJurisdiction({
+    id: IDS.ludbianaDistrict,
+    name: 'Ludhiana District',
+    type: 'DISTRICT',
+    category: 'URBAN',
+    parentId: IDS.punjabState
   });
 
   await upsertJurisdiction({
-    id: IDS.ruralDistrict,
-    name: 'Sehore District',
+    id: IDS.ludhianaCity,
+    name: 'Ludhiana City',
+    type: 'CITY',
+    category: 'URBAN',
+    parentId: IDS.ludbianaDistrict
+  });
+
+  await upsertJurisdiction({
+    id: IDS.ludhianaZone,
+    name: 'Ludhiana Zone 2',
+    type: 'ZONE',
+    category: 'URBAN',
+    parentId: IDS.ludhianaCity
+  });
+
+  await upsertJurisdiction({
+    id: IDS.ludhianaWard,
+    name: 'Ludhiana Ward 8',
+    type: 'WARD',
+    category: 'URBAN',
+    parentId: IDS.ludhianaZone
+  });
+
+  // ============ JALANDHAR (URBAN) ============
+  await upsertJurisdiction({
+    id: IDS.jalandharDistrict,
+    name: 'Jalandhar District',
+    type: 'DISTRICT',
+    category: 'URBAN',
+    parentId: IDS.punjabState
+  });
+
+  await upsertJurisdiction({
+    id: IDS.jalandharCity,
+    name: 'Jalandhar City',
+    type: 'CITY',
+    category: 'URBAN',
+    parentId: IDS.jalandharDistrict
+  });
+
+  await upsertJurisdiction({
+    id: IDS.jalandharZone,
+    name: 'Jalandhar Zone 1',
+    type: 'ZONE',
+    category: 'URBAN',
+    parentId: IDS.jalandharCity
+  });
+
+  await upsertJurisdiction({
+    id: IDS.jalandharWard,
+    name: 'Jalandhar Ward 12',
+    type: 'WARD',
+    category: 'URBAN',
+    parentId: IDS.jalandharZone
+  });
+
+  // ============ HOSHIARPUR (RURAL) ============
+  await upsertJurisdiction({
+    id: IDS.hoshiarpurDistrict,
+    name: 'Hoshiarpur District',
     type: 'DISTRICT',
     category: 'RURAL',
-    parentId: IDS.state
+    parentId: IDS.punjabState
   });
 
   await upsertJurisdiction({
-    id: IDS.ruralBlock,
-    name: 'Ichhawar Block',
+    id: IDS.hoshiarpurBlock,
+    name: 'Dasuya Block',
     type: 'BLOCK',
     category: 'RURAL',
-    parentId: IDS.ruralDistrict
+    parentId: IDS.hoshiarpurDistrict
   });
 
   await upsertJurisdiction({
-    id: IDS.ruralPanchayat,
-    name: 'Bordi Kalan Panchayat',
+    id: IDS.hoshiarpurPanchayat,
+    name: 'Dasuya Panchayat',
     type: 'PANCHAYAT',
     category: 'RURAL',
-    parentId: IDS.ruralBlock
+    parentId: IDS.hoshiarpurBlock
+  });
+
+  // ============ SANGRUR (RURAL) ============
+  await upsertJurisdiction({
+    id: IDS.sangurDistrict,
+    name: 'Sangrur District',
+    type: 'DISTRICT',
+    category: 'RURAL',
+    parentId: IDS.punjabState
+  });
+
+  await upsertJurisdiction({
+    id: IDS.sangurBlock,
+    name: 'Sangrur Block',
+    type: 'BLOCK',
+    category: 'RURAL',
+    parentId: IDS.sangurDistrict
+  });
+
+  await upsertJurisdiction({
+    id: IDS.sangurPanchayat,
+    name: 'Sangrur Panchayat',
+    type: 'PANCHAYAT',
+    category: 'RURAL',
+    parentId: IDS.sangurBlock
   });
 };
 
@@ -132,16 +249,40 @@ const main = async () => {
   await seedDepartments();
   await seedCategories();
 
-  console.log('Seed completed.');
-  console.log('Urban chain IDs:');
-  console.log(`districtId=${IDS.urbanDistrict}`);
-  console.log(`cityId=${IDS.urbanCity}`);
-  console.log(`zoneId=${IDS.urbanZone}`);
-  console.log(`wardId=${IDS.urbanWard}`);
-  console.log('Rural chain IDs:');
-  console.log(`districtId=${IDS.ruralDistrict}`);
-  console.log(`blockId=${IDS.ruralBlock}`);
-  console.log(`panchayatId=${IDS.ruralPanchayat}`);
+  console.log('==========================================');
+  console.log('Seed completed successfully!');
+  console.log('==========================================\n');
+
+  console.log('PUNJAB STATE ID:');
+  console.log(`stateId=${IDS.punjabState}\n`);
+
+  console.log('AMRITSAR DISTRICT (URBAN):');
+  console.log(`districtId=${IDS.amritsarDistrict}`);
+  console.log(`cityId=${IDS.amritsarCity}`);
+  console.log(`zoneId=${IDS.amritsarZone}`);
+  console.log(`wardId=${IDS.amritsarWard}\n`);
+
+  console.log('LUDHIANA DISTRICT (URBAN):');
+  console.log(`districtId=${IDS.ludbianaDistrict}`);
+  console.log(`cityId=${IDS.ludhianaCity}`);
+  console.log(`zoneId=${IDS.ludhianaZone}`);
+  console.log(`wardId=${IDS.ludhianaWard}\n`);
+
+  console.log('JALANDHAR DISTRICT (URBAN):');
+  console.log(`districtId=${IDS.jalandharDistrict}`);
+  console.log(`cityId=${IDS.jalandharCity}`);
+  console.log(`zoneId=${IDS.jalandharZone}`);
+  console.log(`wardId=${IDS.jalandharWard}\n`);
+
+  console.log('HOSHIARPUR DISTRICT (RURAL):');
+  console.log(`districtId=${IDS.hoshiarpurDistrict}`);
+  console.log(`blockId=${IDS.hoshiarpurBlock}`);
+  console.log(`panchayatId=${IDS.hoshiarpurPanchayat}\n`);
+
+  console.log('SANGRUR DISTRICT (RURAL):');
+  console.log(`districtId=${IDS.sangurDistrict}`);
+  console.log(`blockId=${IDS.sangurBlock}`);
+  console.log(`panchayatId=${IDS.sangurPanchayat}\n`);
 
   const categories = await prisma.category.findMany({
     orderBy: { id: 'asc' },
@@ -149,7 +290,7 @@ const main = async () => {
   });
   console.log('Categories (use id as categoryId in POST /issues):');
   categories.forEach((category) => {
-    console.log(`${category.id} => ${category.name}`);
+    console.log(`  ${category.id} => ${category.name}`);
   });
 };
 
