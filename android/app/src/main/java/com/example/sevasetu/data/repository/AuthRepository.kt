@@ -1,6 +1,7 @@
 package com.example.sevasetu.data.repository
 
 import com.example.sevasetu.data.remote.api.AuthApi
+import com.example.sevasetu.data.remote.dto.OnboardingRegisterResponse
 import com.example.sevasetu.data.remote.dto.RegisterRequest
 import com.example.sevasetu.data.remote.dto.SendOtpRequest
 import com.example.sevasetu.data.remote.dto.UserDto
@@ -42,11 +43,12 @@ class AuthRepository(
             require(body.user.id.isNotBlank()) { "user.id missing in verify-otp response" }
 
             tokenManager.saveToken(body.token)
+            body.user.addressDistrict?.let { tokenManager.saveUserDistrict(it) }
             body.user
         }
     }
 
-    suspend fun register(request: RegisterRequest): Result<UserDto> {
+    suspend fun register(request: RegisterRequest): Result<OnboardingRegisterResponse> {
         return runCatching {
             val response = authApi.register(request)
             if (!response.isSuccessful) {
@@ -54,12 +56,19 @@ class AuthRepository(
                 throw IllegalStateException(message ?: "Registration failed (${response.code()})")
             }
             val body = requireNotNull(response.body()) { "register response body is null" }
-            tokenManager.saveToken(body.token)
-            body.user
+            require(body.message.isNotBlank()) { "message missing in register response" }
+            require(body.user.id.isNotBlank()) { "user.id missing in register response" }
+            body
         }
     }
 
     fun getToken(): String? = tokenManager.getToken()
+
+    fun saveUserDistrict(districtId: String) {
+        tokenManager.saveUserDistrict(districtId)
+    }
+
+    fun getUserDistrict(): String? = tokenManager.getUserDistrict()
 
     fun clearSession() {
         tokenManager.clear()

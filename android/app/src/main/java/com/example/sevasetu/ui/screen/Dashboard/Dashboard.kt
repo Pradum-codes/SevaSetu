@@ -85,11 +85,28 @@ fun DashboardScreen() {
     val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
     val scope = rememberCoroutineScope()
     var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
+    
+    // Get user's district from TokenManager
+    val userDistrictId = remember {
+        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+        tokenManager.getUserDistrict()?.takeIf { it.isNotBlank() } ?: DEFAULT_NEARBY_DISTRICT_ID
+    }
+
+    val userDistrictName = remember(userDistrictId) {
+        com.example.sevasetu.utils.JurisdictionConstants.DISTRICTS
+            .find { it.id == userDistrictId }?.name ?: "Unknown"
+    }
+
+    val userDistrictCoords = remember(userDistrictId) {
+        val dist = com.example.sevasetu.utils.JurisdictionConstants.DISTRICTS
+            .find { it.id == userDistrictId }
+        if (dist != null) GeoPoint(dist.lat, dist.lng) else GeoPoint(31.6340, 74.8723)
+    }
 
     val fetchNearbyIssues: () -> Unit = {
         scope.launch {
             mapUiState = MapUiState.Loading
-            issueRepository.getNearbyIssues(DEFAULT_NEARBY_DISTRICT_ID)
+            issueRepository.getNearbyIssues(userDistrictId)
                 .onSuccess { issues ->
                     val mapIssues = issues.mapNotNull { it.toMapIssue() }
                     mapUiState = MapUiState.Success(mapIssues)
@@ -231,6 +248,8 @@ fun DashboardScreen() {
 
             DashboardMapSection(
                 mapUiState = mapUiState,
+                userDistrictName = userDistrictName,
+                centerPoint = userDistrictCoords,
                 onRetry = fetchNearbyIssues
             )
 
@@ -414,71 +433,111 @@ private fun NearbyIssuesListSection(
 @Composable
 private fun DashboardMapSection(
     mapUiState: MapUiState,
+    userDistrictName: String,
+    centerPoint: GeoPoint,
     onRetry: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
-            .clip(RoundedCornerShape(24.dp))
     ) {
-        when (mapUiState) {
-            MapUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFE8F5E9)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color(0xFF00875A))
-                }
+        // District label at top
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFF00875A).copy(alpha = 0.1f),
+            border = BorderStroke(1.dp, Color(0xFF00875A))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.LocationOn,
+                    contentDescription = null,
+                    tint = Color(0xFF00875A),
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Your District: $userDistrictName",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF00875A),
+                    maxLines = 1
+                )
             }
+        }
 
-            is MapUiState.Error -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFE8F5E9))
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = mapUiState.message,
-                        color = Color(0xFF2D2D2D),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = onRetry) {
-                        Text("Retry")
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .clip(RoundedCornerShape(24.dp))
+        ) {
+            when (mapUiState) {
+                MapUiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFE8F5E9)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF00875A))
                     }
                 }
-            }
 
-            is MapUiState.Success -> {
-                NearbyIssuesMap(
-                    issues = mapUiState.issues,
-                    modifier = Modifier.fillMaxSize()
-                )
+                is MapUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFE8F5E9))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = mapUiState.message,
+                            color = Color(0xFF2D2D2D),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
+                    }
+                }
 
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White.copy(alpha = 0.92f)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "Community Pulse",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "${mapUiState.issues.size} nearby issues mapped",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
+                is MapUiState.Success -> {
+                    NearbyIssuesMap(
+                        issues = mapUiState.issues,
+                        centerPoint = centerPoint,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White.copy(alpha = 0.92f)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Community Pulse",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "${mapUiState.issues.size} nearby issues mapped",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
                 }
             }
@@ -489,6 +548,7 @@ private fun DashboardMapSection(
 @Composable
 private fun NearbyIssuesMap(
     issues: List<MapIssue>,
+    centerPoint: GeoPoint,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -533,11 +593,7 @@ private fun NearbyIssuesMap(
         update = { view ->
             view.overlays.clear()
 
-            val points = issues.map { issue ->
-                GeoPoint(issue.lat, issue.lng)
-            }
-            val center = points.firstOrNull() ?: GeoPoint(23.2599, 77.4126)
-            view.controller.setCenter(center)
+            view.controller.setCenter(centerPoint)
 
             issues.forEach { issue ->
                 val marker = Marker(view).apply {
@@ -646,7 +702,7 @@ private data class MapIssue(
     val priority: String?
 )
 
-private const val DEFAULT_NEARBY_DISTRICT_ID = "22222222-2222-2222-2222-222222222222"
+private const val DEFAULT_NEARBY_DISTRICT_ID = "20000001-0000-0000-0000-000000000000"
 
 @Composable
 fun CategoryChip(label: String, icon: ImageVector) {

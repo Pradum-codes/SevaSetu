@@ -24,6 +24,12 @@ class TokenManager(context: Context) {
 
     fun getToken(): String? = prefs.getString(KEY_JWT, null)
 
+    fun saveUserDistrict(districtId: String) {
+        prefs.edit().putString(KEY_USER_DISTRICT, districtId).apply()
+    }
+
+    fun getUserDistrict(): String? = prefs.getString(KEY_USER_DISTRICT, null)
+
     fun clear() {
         prefs.edit().clear().apply()
     }
@@ -31,5 +37,6 @@ class TokenManager(context: Context) {
     companion object {
         private const val AUTH_PREFS = "auth_prefs"
         private const val KEY_JWT = "jwt"
+        private const val KEY_USER_DISTRICT = "user_district"
     }
 }

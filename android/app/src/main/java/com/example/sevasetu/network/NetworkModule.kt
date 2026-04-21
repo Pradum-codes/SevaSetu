@@ -2,6 +2,7 @@ package com.example.sevasetu.network
 
 import android.content.Context
 import com.example.sevasetu.data.remote.api.AuthApi
+import com.example.sevasetu.data.remote.api.IssueApi
 import com.example.sevasetu.utils.TokenManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -14,6 +15,16 @@ object NetworkModule {
     private const val BASE_URL = "https://sevasetu-zqa6.onrender.com/"
 
     fun provideAuthApi(context: Context): AuthApi {
+        val retrofit = provideRetrofit(context)
+        return retrofit.create(AuthApi::class.java)
+    }
+
+    fun provideIssueApi(context: Context): IssueApi {
+        val retrofit = provideRetrofit(context)
+        return retrofit.create(IssueApi::class.java)
+    }
+
+    private fun provideRetrofit(context: Context): Retrofit {
         val tokenManager = TokenManager(context.applicationContext)
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -28,12 +39,10 @@ object NetworkModule {
             .writeTimeout(20, TimeUnit.SECONDS)
             .build()
 
-        val retrofit = Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(client)
             .build()
-
-        return retrofit.create(AuthApi::class.java)
     }
 }

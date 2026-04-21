@@ -55,6 +55,8 @@ import com.example.sevasetu.ui.common.AuthViewModelFactory
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.Login
 import com.example.sevasetu.data.repository.AuthRepository
+import com.example.sevasetu.utils.JurisdictionConstants
+import com.example.sevasetu.utils.TokenManager
 
 class AccountCreation : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,13 +71,11 @@ class AccountCreation : ComponentActivity() {
                     AccountCreationScreen(
                         modifier = Modifier.padding(innerPadding),
                         onBackClick = { finish() },
-                        onLoginClick = { 
+                        onLoginClick = {
                             startActivity(Intent(this, Login::class.java))
                             finish()
                         },
                         onRegistrationSuccess = {
-                            // After successful registration, usually we go to Dashboard
-                            // For now, let's just finish or go to Login
                             finish()
                         }
                     )
@@ -93,32 +93,45 @@ fun AccountCreationScreen(
     onRegistrationSuccess: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val repository = remember { AuthRepository(NetworkModule.provideAuthApi(context), com.example.sevasetu.utils.TokenManager(context)) }
+    val repository = remember { AuthRepository(NetworkModule.provideAuthApi(context), TokenManager(context)) }
     val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(repository))
     val uiState by viewModel.uiState.collectAsState()
 
+    // ==================== PERSONAL INFO ====================
     var fullName by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var emailAddress by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
+
+    // ==================== IDENTITY VERIFICATION ====================
     var idType by remember { mutableStateOf("") }
     var idNumber by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("") }
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
+
+    // ==================== LOCATION & JURISDICTION ====================
+    var selectedDistrict by remember { mutableStateOf("") }
+    var selectedDistrictId by remember { mutableStateOf("") }
+    var areaType by remember { mutableStateOf("") }
+    var selectedCity by remember { mutableStateOf("") }
+    var selectedWard by remember { mutableStateOf("") }
+    var selectedBlock by remember { mutableStateOf("") }
+    var selectedPanchayat by remember { mutableStateOf("") }
+    var addressLocality by remember { mutableStateOf("") }
+    var addressLandmark by remember { mutableStateOf("") }
+    var fullAddress by remember { mutableStateOf("") }
     var pinCode by remember { mutableStateOf("") }
 
-    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    // ==================== VALIDATION STATE ====================
+    var validationErrors by remember { mutableStateOf(ValidationErrors()) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             val fileSize = getFileSize(context, it)
-            if (fileSize > 5 * 1024 * 1024) { // 5MB limit
+            if (fileSize > 5 * 1024 * 1024) {
                 Toast.makeText(context, "File size exceeds 5MB limit", Toast.LENGTH_SHORT).show()
             } else {
-                selectedFileUri = it
                 selectedFileName = getFileName(context, it)
             }
         }
@@ -130,6 +143,24 @@ fun AccountCreationScreen(
 
     val focusManager = LocalFocusManager.current
 
+    // Auto-populate area type based on district selection
+    LaunchedEffect(selectedDistrictId) {
+        if (selectedDistrictId.isNotEmpty()) {
+            areaType = JurisdictionConstants.getCategory(selectedDistrictId)
+
+            // Auto-populate city/ward or block/panchayat
+            if (JurisdictionConstants.isUrban(selectedDistrictId)) {
+                val urbanLocation = JurisdictionConstants.getUrbanLocation(selectedDistrictId)
+                selectedCity = urbanLocation?.cityName ?: ""
+                selectedWard = urbanLocation?.wardName ?: ""
+            } else {
+                val ruralLocation = JurisdictionConstants.getRuralLocation(selectedDistrictId)
+                selectedBlock = ruralLocation?.blockName ?: ""
+                selectedPanchayat = ruralLocation?.panchayatName ?: ""
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -139,17 +170,14 @@ fun AccountCreationScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Professional Top Navigation
+        // Top Navigation
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(40.dp)
-            ) {
+            IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
@@ -191,9 +219,17 @@ fun AccountCreationScreen(
             )
         }
 
+        if (uiState.infoMessage != null) {
+            Text(
+                text = uiState.infoMessage!!,
+                color = primaryGreen,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(40.dp))
 
-        // --- PERSONAL INFO SECTION ---
+        // ========== PERSONAL INFO SECTION ==========
         SectionHeader(text = "PERSONAL INFO", color = primaryGreen)
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -203,7 +239,8 @@ fun AccountCreationScreen(
             onValueChange = { fullName = it },
             placeholder = "Enter your name as per ID",
             imeAction = ImeAction.Next,
-            onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+            hasError = validationErrors.fullName
         )
 
         ProfessionalInputField(
@@ -213,7 +250,8 @@ fun AccountCreationScreen(
             placeholder = "Enter Your Phone number",
             keyboardType = KeyboardType.Phone,
             imeAction = ImeAction.Next,
-            onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+            hasError = validationErrors.phoneNumber
         )
 
         ProfessionalInputField(
@@ -223,19 +261,21 @@ fun AccountCreationScreen(
             placeholder = "name@gmail.com",
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Next,
-            onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+            hasError = validationErrors.emailAddress
         )
 
         ProfessionalDropdownField(
             label = "GENDER",
             selectedValue = gender,
             options = listOf("Male", "Female", "Other"),
-            onOptionSelected = { gender = it }
+            onOptionSelected = { gender = it },
+            hasError = validationErrors.gender
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- IDENTITY VERIFICATION SECTION ---
+        // ========== IDENTITY VERIFICATION SECTION ==========
         SectionHeader(text = "IDENTITY VERIFICATION", color = primaryGreen)
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -248,7 +288,8 @@ fun AccountCreationScreen(
                     label = "ID TYPE",
                     selectedValue = idType,
                     options = listOf("Aadhaar Card", "PAN Card", "Voter ID"),
-                    onOptionSelected = { idType = it }
+                    onOptionSelected = { idType = it },
+                    hasError = validationErrors.idType
                 )
             }
             Box(modifier = Modifier.weight(1f)) {
@@ -258,7 +299,8 @@ fun AccountCreationScreen(
                     onValueChange = { idNumber = it },
                     placeholder = "ID number",
                     imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                    hasError = validationErrors.idNumber
                 )
             }
         }
@@ -273,9 +315,7 @@ fun AccountCreationScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, primaryGreen),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = primaryGreen
-            )
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = primaryGreen)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -289,10 +329,7 @@ fun AccountCreationScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (selectedFileName != null) "Change Document" else "Upload ID Proof",
-                    style = TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -300,33 +337,20 @@ fun AccountCreationScreen(
         if (selectedFileName != null) {
             Text(
                 text = "Selected: $selectedFileName (Max 5MB)",
-                style = TextStyle(
-                    color = Color.Gray,
-                    fontSize = 12.sp
-                ),
+                style = TextStyle(color = Color.Gray, fontSize = 12.sp),
                 modifier = Modifier.padding(top = 8.dp, start = 4.dp)
-            )
-        } else {
-            Text(
-                text = "Allowed formats: PDF, PNG, JPG (Max 5MB)",
-                style = TextStyle(
-                    color = Color.Gray,
-                    fontSize = 11.sp
-                ),
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // --- YOUR LOCATION SECTION ---
+        // ========== LOCATION & JURISDICTION SECTION ==========
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             SectionHeader(text = "YOUR LOCATION", color = primaryGreen)
-            
             Surface(
                 onClick = { /* Handle Detect Location */ },
                 color = lightGreenBg,
@@ -357,70 +381,175 @@ fun AccountCreationScreen(
         }
         Spacer(modifier = Modifier.height(12.dp))
 
+        // State (Fixed as Punjab)
         ProfessionalInputField(
-            label = "ADDRESS",
-            value = address,
-            onValueChange = { address = it },
-            placeholder = "House No, Street, Landmark",
+            label = "STATE",
+            value = JurisdictionConstants.PUNJAB_STATE_NAME,
+            onValueChange = {},
+            placeholder = "Punjab",
+            enabled = false
+        )
+
+        // District Selection
+        ProfessionalDropdownField(
+            label = "DISTRICT",
+            selectedValue = selectedDistrict,
+            options = JurisdictionConstants.DISTRICTS.map { it.name },
+            onOptionSelected = { districtName ->
+                selectedDistrict = districtName
+                val district = JurisdictionConstants.DISTRICTS.find { it.name == districtName }
+                selectedDistrictId = district?.id ?: ""
+            },
+            hasError = validationErrors.district
+        )
+
+        // Area Type (Auto-populated, read-only display)
+        if (areaType.isNotEmpty()) {
+            ProfessionalInputField(
+                label = "AREA TYPE",
+                value = if (areaType == "URBAN") "Urban" else "Rural",
+                onValueChange = {},
+                placeholder = "Auto-populated",
+                enabled = false
+            )
+        }
+
+        // Urban-specific fields
+        if (areaType == "URBAN" && selectedDistrictId.isNotEmpty()) {
+            ProfessionalInputField(
+                label = "CITY",
+                value = selectedCity,
+                onValueChange = {},
+                placeholder = "Auto-populated",
+                enabled = false
+            )
+
+            ProfessionalInputField(
+                label = "WARD",
+                value = selectedWard,
+                onValueChange = {},
+                placeholder = "Auto-populated",
+                enabled = false
+            )
+        }
+
+        // Rural-specific fields
+        if (areaType == "RURAL" && selectedDistrictId.isNotEmpty()) {
+            ProfessionalInputField(
+                label = "BLOCK",
+                value = selectedBlock,
+                onValueChange = {},
+                placeholder = "Auto-populated",
+                enabled = false
+            )
+
+            ProfessionalInputField(
+                label = "PANCHAYAT",
+                value = selectedPanchayat,
+                onValueChange = {},
+                placeholder = "Auto-populated",
+                enabled = false
+            )
+        }
+
+        // Additional address fields
+        ProfessionalInputField(
+            label = "LOCALITY",
+            value = addressLocality,
+            onValueChange = { addressLocality = it },
+            placeholder = "Enter locality (Optional)",
             imeAction = ImeAction.Next,
             onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            ProfessionalInputField(
-                modifier = Modifier.weight(1f),
-                label = "CITY",
-                value = city,
-                onValueChange = { city = it },
-                placeholder = "Your city",
-                imeAction = ImeAction.Next,
-                onImeAction = { focusManager.moveFocus(FocusDirection.Right) }
-            )
-            ProfessionalInputField(
-                modifier = Modifier.weight(1f),
-                label = "PIN CODE",
-                value = pinCode,
-                onValueChange = { pinCode = it },
-                placeholder = "000000",
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Done,
-                onImeAction = { focusManager.clearFocus() }
-            )
-        }
+        ProfessionalInputField(
+            label = "LANDMARK",
+            value = addressLandmark,
+            onValueChange = { addressLandmark = it },
+            placeholder = "Enter landmark (Optional)",
+            imeAction = ImeAction.Next,
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
+        )
+
+        ProfessionalInputField(
+            label = "FULL ADDRESS",
+            value = fullAddress,
+            onValueChange = { fullAddress = it },
+            placeholder = "House No, Street, etc.",
+            imeAction = ImeAction.Next,
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+            hasError = validationErrors.fullAddress
+        )
+
+        ProfessionalInputField(
+            label = "PIN CODE",
+            value = pinCode,
+            onValueChange = { pinCode = it },
+            placeholder = "000000",
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Done,
+            onImeAction = { focusManager.clearFocus() },
+            hasError = validationErrors.pinCode
+        )
 
         Spacer(modifier = Modifier.height(60.dp))
 
-        LaunchedEffect(uiState.isAuthenticated) {
-            if (uiState.isAuthenticated) {
+        LaunchedEffect(uiState.registrationCompleted) {
+            if (uiState.registrationCompleted) {
                 onRegistrationSuccess()
             }
         }
 
-        // Primary Action Button
+        // Register Button
         Button(
             onClick = {
-                if (fullName.isBlank() || phoneNumber.isBlank() || emailAddress.isBlank() ||
-                    gender.isBlank() || idType.isBlank() || idNumber.isBlank() ||
-                    address.isBlank() || city.isBlank() || pinCode.isBlank()
-                ) {
-                    Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                // Validate all required fields
+                validationErrors = ValidationErrors(
+                    fullName = fullName.isBlank(),
+                    phoneNumber = phoneNumber.isBlank(),
+                    emailAddress = emailAddress.isBlank(),
+                    gender = gender.isBlank(),
+                    idType = idType.isBlank(),
+                    idNumber = idNumber.isBlank(),
+                    district = selectedDistrictId.isBlank(),
+                    fullAddress = fullAddress.isBlank(),
+                    pinCode = pinCode.isBlank()
+                )
+
+                // Check if there are any errors
+                if (validationErrors.hasErrors()) {
+                    Toast.makeText(
+                        context,
+                        "Please fill all required fields (marked in red)",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 } else {
-                    viewModel.register(
-                        RegisterRequest(
-                            fullName = fullName,
-                            email = emailAddress,
-                            phoneNumber = phoneNumber,
-                            gender = gender,
-                            address = address,
-                            city = city,
-                            pinCode = pinCode,
-                            idType = idType,
-                            idNumber = idNumber
-                        )
+                    // Build the request with proper jurisdiction IDs
+                    val finalJurisdictionId = JurisdictionConstants.getFinalJurisdictionId(selectedDistrictId) ?: ""
+                    val urbanLoc = JurisdictionConstants.getUrbanLocation(selectedDistrictId)
+                    val ruralLoc = JurisdictionConstants.getRuralLocation(selectedDistrictId)
+
+                    val registerRequest = RegisterRequest(
+                        name = fullName,
+                        email = emailAddress,
+                        phone = phoneNumber,
+                        gender = gender,
+                        idType = idType,
+                        idNumber = idNumber,
+                        jurisdictionId = finalJurisdictionId,
+                        addressDistrict = selectedDistrictId,
+                        addressAreaType = areaType,
+                        addressCity = urbanLoc?.cityId,
+                        addressWard = urbanLoc?.wardId,
+                        addressBlock = ruralLoc?.blockId,
+                        addressPanchayat = ruralLoc?.panchayatId,
+                        addressLocality = addressLocality.ifBlank { null },
+                        addressLandmark = addressLandmark.ifBlank { null },
+                        addressText = fullAddress,
+                        pinCode = pinCode
                     )
+
+                    viewModel.register(registerRequest)
                 }
             },
             modifier = Modifier
@@ -454,7 +583,7 @@ fun AccountCreationScreen(
             text = buildAnnotatedString {
                 append("Already have an account? ")
                 withStyle(style = SpanStyle(
-                    color = primaryGreen, 
+                    color = primaryGreen,
                     fontWeight = FontWeight.ExtraBold,
                     textDecoration = TextDecoration.None
                 )) {
@@ -466,10 +595,7 @@ fun AccountCreationScreen(
                 .clickable { onLoginClick() }
                 .padding(vertical = 12.dp),
             textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = 15.sp,
-                color = Color.Gray
-            )
+            style = TextStyle(fontSize = 15.sp, color = Color.Gray)
         )
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -498,6 +624,26 @@ fun SectionHeader(text: String, color: Color) {
     }
 }
 
+/**
+ * Data class to track validation errors for form fields
+ */
+data class ValidationErrors(
+    val fullName: Boolean = false,
+    val phoneNumber: Boolean = false,
+    val emailAddress: Boolean = false,
+    val gender: Boolean = false,
+    val idType: Boolean = false,
+    val idNumber: Boolean = false,
+    val district: Boolean = false,
+    val fullAddress: Boolean = false,
+    val pinCode: Boolean = false
+) {
+    fun hasErrors(): Boolean {
+        return fullName || phoneNumber || emailAddress || gender || idType || idNumber ||
+                district || fullAddress || pinCode
+    }
+}
+
 @Composable
 fun ProfessionalInputField(
     label: String,
@@ -507,36 +653,55 @@ fun ProfessionalInputField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
-    onImeAction: () -> Unit = {}
+    onImeAction: () -> Unit = {},
+    enabled: Boolean = true,
+    hasError: Boolean = false
 ) {
     val labelGray = Color(0xFF444444)
-    val borderColor = Color(0xFFE0E0E0)
+    val borderColor = if (hasError) Color(0xFFD32F2F) else Color(0xFFE0E0E0)
+    val labelColor = if (hasError) Color(0xFFD32F2F) else labelGray
 
     Column(modifier = modifier.padding(vertical = 8.dp)) {
-        Text(
-            text = label,
-            style = TextStyle(
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = labelGray,
-                letterSpacing = 0.3.sp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = labelColor,
+                    letterSpacing = 0.3.sp
+                )
             )
-        )
+            if (hasError) {
+                Text(
+                    text = "Required",
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F)
+                    )
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(12.dp))
-                .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+                .background(if (enabled) Color.White else Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+                .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             BasicTextField(
                 value = value,
-                onValueChange = onValueChange,
+                onValueChange = if (enabled) onValueChange else { {} },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(
-                    fontSize = 15.sp, 
-                    color = Color.Black,
+                    fontSize = 15.sp,
+                    color = if (enabled) Color.Black else Color.Gray,
                     fontWeight = FontWeight.Medium
                 ),
                 cursorBrush = SolidColor(Color(0xFF006837)),
@@ -544,10 +709,9 @@ fun ProfessionalInputField(
                     keyboardType = keyboardType,
                     imeAction = imeAction
                 ),
-                keyboardActions = KeyboardActions(
-                    onAny = { onImeAction() }
-                ),
+                keyboardActions = KeyboardActions(onAny = { onImeAction() }),
                 singleLine = true,
+                enabled = enabled,
                 decorationBox = { innerTextField ->
                     if (value.isEmpty()) {
                         Text(
@@ -571,28 +735,46 @@ fun ProfessionalDropdownField(
     selectedValue: String,
     options: List<String>,
     onOptionSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hasError: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
     val labelGray = Color(0xFF444444)
-    val borderColor = Color(0xFFE0E0E0)
+    val borderColor = if (hasError) Color(0xFFD32F2F) else Color(0xFFE0E0E0)
+    val labelColor = if (hasError) Color(0xFFD32F2F) else labelGray
 
     Column(modifier = modifier.padding(vertical = 8.dp)) {
-        Text(
-            text = label,
-            style = TextStyle(
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = labelGray,
-                letterSpacing = 0.3.sp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = labelColor,
+                    letterSpacing = 0.3.sp
+                )
             )
-        )
+            if (hasError) {
+                Text(
+                    text = "Required",
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F)
+                    )
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White, RoundedCornerShape(12.dp))
-                .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+                .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                 .clickable { expanded = true }
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {

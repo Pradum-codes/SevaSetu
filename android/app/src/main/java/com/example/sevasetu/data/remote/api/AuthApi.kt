@@ -1,6 +1,7 @@
 package com.example.sevasetu.data.remote.api
 
 import com.example.sevasetu.data.remote.dto.AuthResponse
+import com.example.sevasetu.data.remote.dto.OnboardingRegisterResponse
 import com.example.sevasetu.data.remote.dto.RegisterRequest
 import com.example.sevasetu.data.remote.dto.SendOtpRequest
 import com.example.sevasetu.data.remote.dto.SendOtpResponse
@@ -17,6 +18,6 @@ interface AuthApi {
     @POST("/auth/verify-otp")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<AuthResponse>
 
-    @POST("/auth/register")
-    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    @POST("/auth/register/onboarding")
+    suspend fun register(@Body request: RegisterRequest): Response<OnboardingRegisterResponse>
 }

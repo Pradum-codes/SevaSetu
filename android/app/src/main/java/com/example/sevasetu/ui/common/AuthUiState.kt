@@ -8,6 +8,7 @@ data class AuthUiState(
     val otp: String = "",
     val otpSent: Boolean = false,
     val isAuthenticated: Boolean = false,
+    val registrationCompleted: Boolean = false,
     val user: UserDto? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null

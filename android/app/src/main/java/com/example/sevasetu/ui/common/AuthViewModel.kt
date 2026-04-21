@@ -102,15 +102,25 @@ class AuthViewModel(
 
     fun register(request: RegisterRequest) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, infoMessage = null) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    infoMessage = null,
+                    registrationCompleted = false,
+                    isAuthenticated = false
+                )
+            }
             repository.register(request)
-                .onSuccess { user ->
+                .onSuccess { response ->
+                    // Store user's district for dashboard issues map
+                    repository.saveUserDistrict(request.addressDistrict)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            isAuthenticated = true,
-                            user = user,
-                            infoMessage = "Account created successfully"
+                            registrationCompleted = true,
+                            user = null,
+                            infoMessage = response.message
                         )
                     }
                 }

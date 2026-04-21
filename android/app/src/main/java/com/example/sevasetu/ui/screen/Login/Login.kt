@@ -30,7 +30,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,9 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -50,7 +46,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sevasetu.data.repository.AuthContainer
@@ -96,8 +91,6 @@ fun LoginScreen(
     onAuthSuccess: () -> Unit,
     onCreateAccountClick: () -> Unit = {}
 ) {
-    var phone by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf("Email") }
     val uiState by authViewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.isAuthenticated) {
@@ -192,97 +185,47 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(44.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFE8F0EB),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(modifier = Modifier.padding(5.dp)) {
-                        TabItem(
-                            text = "Phone Number",
-                            isSelected = selectedTab == "Phone",
-                            onClick = { selectedTab = "Phone" },
-                            modifier = Modifier.weight(1f)
-                        )
-                        TabItem(
-                            text = "Email Address",
-                            isSelected = selectedTab == "Email",
-                            onClick = { selectedTab = "Email" },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                InputLabel("EMAIL ADDRESS")
+                Spacer(modifier = Modifier.height(10.dp))
+                CustomInputField {
+                    BasicTextField(
+                        value = uiState.email,
+                        onValueChange = { authViewModel.onEmailChanged(it) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black),
+                        decorationBox = { inner ->
+                            if (uiState.email.isEmpty()) {
+                                Text("Enter your email", color = Color.Gray.copy(0.45f), fontSize = 18.sp)
+                            }
+                            inner()
+                        }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
-
-                if (selectedTab == "Phone") {
-                    InputLabel("MOBILE NUMBER")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    CustomInputField {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "+91", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 18.sp)
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color.LightGray))
-                            Spacer(modifier = Modifier.width(14.dp))
-                            BasicTextField(
-                                value = phone,
-                                onValueChange = { if (it.length <= 10 && it.all { c -> c.isDigit() }) phone = it },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black),
-                                decorationBox = { inner ->
-                                    if (phone.isEmpty()) {
-                                        Text("Enter Mobile Number", color = Color.Gray.copy(0.45f), fontSize = 18.sp)
-                                    }
-                                    inner()
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    InputLabel("EMAIL ADDRESS")
+                if (uiState.otpSent) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    InputLabel("EMAIL OTP")
                     Spacer(modifier = Modifier.height(10.dp))
                     CustomInputField {
                         BasicTextField(
-                            value = uiState.email,
-                            onValueChange = { authViewModel.onEmailChanged(it) },
+                            value = uiState.otp,
+                            onValueChange = {
+                                val digitsOnly = it.filter(Char::isDigit).take(6)
+                                authViewModel.onOtpChanged(digitsOnly)
+                            },
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
                             textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black),
                             decorationBox = { inner ->
-                                if (uiState.email.isEmpty()) {
-                                    Text("Enter your email", color = Color.Gray.copy(0.45f), fontSize = 18.sp)
+                                if (uiState.otp.isEmpty()) {
+                                    Text("Enter 6-digit OTP", color = Color.Gray.copy(0.45f), fontSize = 18.sp)
                                 }
                                 inner()
                             }
                         )
-                    }
-
-                    if (uiState.otpSent) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        InputLabel("EMAIL OTP")
-                        Spacer(modifier = Modifier.height(10.dp))
-                        CustomInputField {
-                            BasicTextField(
-                                value = uiState.otp,
-                                onValueChange = {
-                                    val digitsOnly = it.filter(Char::isDigit).take(6)
-                                    authViewModel.onOtpChanged(digitsOnly)
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.Black),
-                                decorationBox = { inner ->
-                                    if (uiState.otp.isEmpty()) {
-                                        Text("Enter 6-digit OTP", color = Color.Gray.copy(0.45f), fontSize = 18.sp)
-                                    }
-                                    inner()
-                                }
-                            )
-                        }
                     }
                 }
 
@@ -290,12 +233,10 @@ fun LoginScreen(
 
                 Button(
                     onClick = {
-                        if (selectedTab == "Email") {
-                            if (uiState.otpSent) {
-                                authViewModel.verifyOtp()
-                            } else {
-                                authViewModel.sendOtp()
-                            }
+                        if (uiState.otpSent) {
+                            authViewModel.verifyOtp()
+                        } else {
+                            authViewModel.sendOtp()
                         }
                     },
                     shape = RoundedCornerShape(16.dp),
@@ -304,7 +245,7 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .height(64.dp),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    enabled = selectedTab == "Email" && !uiState.isLoading
+                    enabled = !uiState.isLoading
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -317,50 +258,12 @@ fun LoginScreen(
                     }
                 }
 
-                if (uiState.errorMessage != null || uiState.infoMessage != null || selectedTab == "Phone") {
+                if (uiState.errorMessage != null || uiState.infoMessage != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = when {
-                            selectedTab == "Phone" -> "Mobile OTP flow is disabled for now. Please use Email."
-                            uiState.errorMessage != null -> uiState.errorMessage ?: ""
-                            else -> uiState.infoMessage ?: ""
-                        },
-                        color = if (uiState.errorMessage != null || selectedTab == "Phone") Color(0xFFB3261E) else Color(0xFF006D44),
+                        text = uiState.errorMessage ?: uiState.infoMessage ?: "",
+                        color = if (uiState.errorMessage != null) Color(0xFFB3261E) else Color(0xFF006D44),
                         style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(44.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
-                    Text(
-                        text = " OR CONTINUE WITH ",
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray,
-                            letterSpacing = 1.2.sp
-                        )
-                    )
-                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    SocialButton(
-                        iconRes = R.drawable.iconsgoogle,
-                        label = "Google",
-                        modifier = Modifier.weight(1f)
-                    )
-                    SocialButton(
-                        iconRes = R.drawable.iconsbiometric,
-                        label = "Biometric",
-                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -387,24 +290,24 @@ fun LoginScreen(
     }
 }
 
-@Composable
-fun TabItem(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) Color.White else Color.Transparent,
-        shadowElevation = if (isSelected) 3.dp else 0.dp,
-        modifier = modifier.clickable { onClick() }
-    ) {
-        Box(modifier = Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = text,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color(0xFF006D44) else Color.Gray,
-                fontSize = 15.sp
-            )
-        }
-    }
-}
+//@Composable
+//fun TabItem(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+//    Surface(
+//        shape = RoundedCornerShape(16.dp),
+//        color = if (isSelected) Color.White else Color.Transparent,
+//        shadowElevation = if (isSelected) 3.dp else 0.dp,
+//        modifier = modifier.clickable { onClick() }
+//    ) {
+//        Box(modifier = Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+//            Text(
+//                text = text,
+//                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+//                color = if (isSelected) Color(0xFF006D44) else Color.Gray,
+//                fontSize = 15.sp
+//            )
+//        }
+//    }
+//}
 
 @Composable
 fun InputLabel(text: String) {
@@ -432,23 +335,23 @@ fun CustomInputField(content: @Composable () -> Unit) {
     }
 }
 
-@Composable
-fun SocialButton(iconRes: Int, label: String, modifier: Modifier) {
-    Surface(
-        modifier = modifier.height(60.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE0EAE4)),
-        onClick = { }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Image(painter = painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(text = label, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-        }
-    }
-}
+//@Composable
+//fun SocialButton(iconRes: Int, label: String, modifier: Modifier) {
+//    Surface(
+//        modifier = modifier.height(60.dp),
+//        shape = RoundedCornerShape(16.dp),
+//        color = Color.White,
+//        border = BorderStroke(1.dp, Color(0xFFE0EAE4)),
+//        onClick = { }
+//    ) {
+//        Row(
+//            verticalAlignment = Alignment.CenterVertically,
+//            horizontalArrangement = Arrangement.Center,
+//            modifier = Modifier.fillMaxSize()
+//        ) {
+//            Image(painter = painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(24.dp))
+//            Spacer(modifier = Modifier.width(12.dp))
+//            Text(text = label, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+//        }
+//    }
+//}
