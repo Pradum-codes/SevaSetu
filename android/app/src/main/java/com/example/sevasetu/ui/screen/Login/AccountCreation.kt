@@ -201,7 +201,7 @@ fun AccountCreationScreen(
             label = "FULL NAME",
             value = fullName,
             onValueChange = { fullName = it },
-            placeholder = "Full name",
+            placeholder = "Enter your name as per ID",
             imeAction = ImeAction.Next,
             onImeAction = { focusManager.moveFocus(FocusDirection.Down) }
         )

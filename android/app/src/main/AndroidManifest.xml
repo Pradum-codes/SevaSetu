@@ -16,22 +16,18 @@
         <activity
             android:name=".ui.screen.Login.AccountCreation"
             android:exported="false"
-            android:label="@string/title_activity_account_creation"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.Alerts.AlertsScreen"
             android:exported="false"
-            android:label="@string/title_activity_alerts_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.Reports.ReportScreen"
             android:exported="false"
-            android:label="@string/title_activity_profile_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.SplashScreen"
             android:exported="true"
-            android:label="@string/title_activity_report_screen"
             android:theme="@style/Theme.SevaSetu">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,17 +38,14 @@
         <activity
             android:name=".Dashboard"
             android:exported="false"
-            android:label="@string/title_activity_dashboard"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".Login"
             android:exported="false"
-            android:label="@string/title_activity_login"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:label="@string/title_activity_splash_screen"
             android:theme="@style/Theme.SevaSetu" />
         <activity
             android:name=".ui.screen.Profile.ProfileScreen"
