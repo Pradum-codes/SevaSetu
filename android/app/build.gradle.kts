@@ -1,3 +1,16 @@
+import java.util.Properties
+
+fun getLocalProperty(key: String): String {
+    val properties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { properties.load(it) }
+    }
+
+    return properties.getProperty(key, "")
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,6 +31,9 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${getLocalProperty("cloudinary.cloud_name")}\"")
+        buildConfigField("String", "CLOUDINARY_UPLOAD_PRESET", "\"${getLocalProperty("cloudinary.upload_preset")}\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -36,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -54,6 +71,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.play.services.location)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

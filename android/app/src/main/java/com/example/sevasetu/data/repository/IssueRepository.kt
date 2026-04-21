@@ -1,6 +1,8 @@
 package com.example.sevasetu.data.repository
 
 import com.example.sevasetu.data.remote.api.IssueApi
+import com.example.sevasetu.data.remote.dto.CreateIssueRequest
+import com.example.sevasetu.data.remote.dto.CreateIssueResponse
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
 import org.json.JSONObject
@@ -43,6 +45,18 @@ class IssueRepository(
             }
 
             requireNotNull(response.body()) { "reports response body is null" }
+        }
+    }
+
+    suspend fun createIssue(request: CreateIssueRequest): Result<CreateIssueResponse> {
+        return runCatching {
+            val response = issueApi.createIssue(request)
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Failed to create issue (${response.code()})")
+            }
+
+            requireNotNull(response.body()) { "create issue response body is null" }
         }
     }
 
