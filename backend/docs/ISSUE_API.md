@@ -335,16 +335,19 @@ GET /issues/sync?lastSync=2026-04-20T08:00:00.000Z&bbox=23.0,77.0,23.5,77.7
 
 ---
 
-## 4. Nearby Issues By District
+## 4. Nearby Issues (Location-First, District Fallback)
 
 - **Method:** `GET`
 - **Path:** `/issues/nearby`
 - **Auth:** Not required
-- **Description:** Returns issues whose `jurisdictionId` belongs to the given district subtree.
+- **Description:** Returns nearby issues using user location first (`lat`/`lng`), with district-based fallback.
 
 ### Query params
 
-- `districtId` (required, must be `DISTRICT`)
+- `lat` (optional, required with `lng`; primary search input)
+- `lng` (optional, required with `lat`; primary search input)
+- `radiusKm` (optional, default `5`, used only when `lat` + `lng` are present)
+- `districtId` (optional fallback; used when `lat`/`lng` are missing, must be `DISTRICT`)
 - `page` (optional, default `1`)
 - `limit` (optional, default `50`, max `100`)
 - `status` (optional: `OPEN`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`)
@@ -352,13 +355,38 @@ GET /issues/sync?lastSync=2026-04-20T08:00:00.000Z&bbox=23.0,77.0,23.5,77.7
 Example:
 
 ```http
-GET /issues/nearby?districtId=22222222-2222-2222-2222-222222222222&page=1&limit=20
+GET /issues/nearby?lat=23.2599&lng=77.4126&radiusKm=5&districtId=22222222-2222-2222-2222-222222222222&page=1&limit=20
 ```
+
+Behavior:
+
+- If `lat` + `lng` are provided, backend uses location mode (`districtId` is ignored).
+- If `lat`/`lng` are missing, backend falls back to `districtId` mode.
+- If only one of `lat` or `lng` is provided, backend returns validation error.
 
 ### Success response (`200`)
 
+Location mode:
+
 ```json
 {
+  "searchMode": "location",
+  "location": {
+    "lat": 23.2599,
+    "lng": 77.4126,
+    "radiusKm": 5
+  },
+  "page": 1,
+  "limit": 20,
+  "issues": []
+}
+```
+
+District fallback mode:
+
+```json
+{
+  "searchMode": "district",
   "district": {
     "id": "22222222-2222-2222-2222-222222222222",
     "name": "Bhopal District",

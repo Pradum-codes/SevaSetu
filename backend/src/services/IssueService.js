@@ -131,6 +131,20 @@ const parseBbox = (bbox) => {
   return { minLat, minLng, maxLat, maxLng };
 };
 
+const buildRadiusBounds = ({ lat, lng, radiusKm }) => {
+  const latDelta = radiusKm / 111;
+  const lngDenominator = Math.cos((lat * Math.PI) / 180);
+  const safeLngDenominator = Math.max(Math.abs(lngDenominator), 0.01);
+  const lngDelta = radiusKm / (111 * safeLngDenominator);
+
+  return {
+    minLat: Math.max(-90, lat - latDelta),
+    maxLat: Math.min(90, lat + latDelta),
+    minLng: Math.max(-180, lng - lngDelta),
+    maxLng: Math.min(180, lng + lngDelta)
+  };
+};
+
 const buildWhereClause = ({ bbox, status }) => {
   const where = {};
 
@@ -374,17 +388,65 @@ export const syncIssues = async ({ query }) => {
 };
 
 export const listNearbyIssuesByDistrict = async ({ query }) => {
-  const districtId = toOptionalTrimmedString(query?.districtId || query?.district);
-  if (!districtId) {
-    throw new IssueServiceError('districtId query parameter is required');
-  }
-
-  const district = await requireJurisdiction(districtId, 'DISTRICT', 'districtId');
-  const jurisdictionIds = await collectDescendantJurisdictionIds(district.id);
+  const lat = parseCoordinate(query?.lat);
+  const lng = parseCoordinate(query?.lng);
+  const hasLat = lat !== null;
+  const hasLng = lng !== null;
+  const radiusKm = Number(query?.radiusKm ?? query?.radius ?? 5);
   const limit = parsePositiveInt(query?.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const page = parsePositiveInt(query?.page, 1, Number.MAX_SAFE_INTEGER);
   const skip = (page - 1) * limit;
   const status = normalizeStatus(query?.status);
+
+  if (hasLat !== hasLng) {
+    throw new IssueServiceError('lat and lng must be provided together');
+  }
+
+  if (hasLat && hasLng) {
+    if (lat < -90 || lat > 90) {
+      throw new IssueServiceError('lat must be a valid latitude between -90 and 90');
+    }
+    if (lng < -180 || lng > 180) {
+      throw new IssueServiceError('lng must be a valid longitude between -180 and 180');
+    }
+    if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+      throw new IssueServiceError('radiusKm must be a positive number');
+    }
+
+    const bounds = buildRadiusBounds({ lat, lng, radiusKm });
+    const where = {
+      lat: { gte: bounds.minLat, lte: bounds.maxLat },
+      lng: { gte: bounds.minLng, lte: bounds.maxLng }
+    };
+    if (status) where.status = status;
+
+    const issues = await findIssues({
+      where,
+      take: limit,
+      skip,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return {
+      searchMode: 'location',
+      location: {
+        lat,
+        lng,
+        radiusKm
+      },
+      page,
+      limit,
+      issues
+    };
+  }
+
+  const districtId = toOptionalTrimmedString(query?.districtId || query?.district);
+  if (!districtId) {
+    throw new IssueServiceError('Provide lat/lng or districtId query parameters');
+  }
+
+  const district = await requireJurisdiction(districtId, 'DISTRICT', 'districtId');
+  const jurisdictionIds = await collectDescendantJurisdictionIds(district.id);
 
   const where = {
     jurisdictionId: { in: jurisdictionIds }
@@ -399,6 +461,7 @@ export const listNearbyIssuesByDistrict = async ({ query }) => {
   });
 
   return {
+    searchMode: 'district',
     district: {
       id: district.id,
       name: district.name,
