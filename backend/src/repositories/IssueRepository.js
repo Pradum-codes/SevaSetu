@@ -58,6 +58,20 @@ export const findIssues = async ({ where, take, skip, orderBy }) => {
   });
 };
 
+export const countIssues = async ({ where }) => {
+  return prisma.issue.count({ where });
+};
+
+export const groupIssueCountsByStatus = async ({ where }) => {
+  return prisma.issue.groupBy({
+    by: ['status'],
+    where,
+    _count: {
+      _all: true
+    }
+  });
+};
+
 export const findJurisdictionById = async (id) => {
   return prisma.jurisdiction.findUnique({
     where: { id },

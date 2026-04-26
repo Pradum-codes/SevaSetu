@@ -1,6 +1,6 @@
 # SevaSetu Backend API Documentation
 
-Base URL (local): `http://localhost:3000`
+Base URL (local): `https://sevasetu-zqa6.onrender.com`
 
 ## Authentication
 This backend uses email OTP authentication.
