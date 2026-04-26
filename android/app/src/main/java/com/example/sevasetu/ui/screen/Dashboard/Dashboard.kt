@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -53,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
@@ -91,6 +91,7 @@ fun DashboardScreen() {
     val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
     val scope = rememberCoroutineScope()
     var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
+    var dashboardUiState by remember { mutableStateOf<DashboardUiState>(DashboardUiState.Loading) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
 
     // Get user's district from TokenManager
@@ -179,8 +180,36 @@ fun DashboardScreen() {
         }
     }
 
+    val fetchDashboard: () -> Unit = {
+        scope.launch {
+            dashboardUiState = DashboardUiState.Loading
+
+            fetchCurrentLocation { location ->
+                scope.launch {
+                    currentLocation = location
+                    issueRepository.getDashboard(
+                        lat = location?.first,
+                        lng = location?.second,
+                        radiusKm = 5.0,
+                        districtId = userDistrictId,
+                        insightWindowDays = 30
+                    )
+                        .onSuccess { response ->
+                            dashboardUiState = DashboardUiState.Success(response)
+                        }
+                        .onFailure { throwable ->
+                            dashboardUiState = DashboardUiState.Error(
+                                throwable.message ?: "Unable to load dashboard"
+                            )
+                        }
+                }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         fetchNearbyIssues()
+        fetchDashboard()
     }
 
     Scaffold(
@@ -315,70 +344,68 @@ fun DashboardScreen() {
 
             Spacer(Modifier.height(16.dp))
 
-            // My Impact Card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF00875A)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color(0xFF00875A), Color(0xFF006D47))
-                            )
-                        )
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Text("MY IMPACT", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("08", color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                        Text("Issues resolved this month", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f)),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("View Contributions", color = Color.White)
-                        }
-                    }
-                    // Decorative Leaf Icon (Placeholder)
-                    Icon(
-                        Icons.Default.Eco,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.1f),
-                        modifier = Modifier.size(80.dp).align(Alignment.TopEnd)
-                    )
+            DashboardSnapshotSection(
+                dashboardUiState = dashboardUiState,
+                onOpenReports = {
+                    context.startActivity(Intent(context, ReportScreen::class.java))
                 }
-            }
+            )
 
             Spacer(Modifier.height(16.dp))
 
-            // Quick Insights
-            Text("Quick Insights", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            // Nearby Insights
+            Text("Nearby Insights", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Spacer(Modifier.height(8.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF1F8E9)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
+            val currentDashboardState = dashboardUiState
+            when (currentDashboardState) {
+                is DashboardUiState.Success -> {
+                    val insights = currentDashboardState.data.nearbyInsights
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF1F8E9)
                     ) {
-                        Text("Avg. Response", color = Color.Gray, fontSize = 14.sp)
-                        Text("2.4 Days", color = Color(0xFF00875A), fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("OPEN", color = Color.Gray, fontSize = 14.sp)
+                                Text(insights.open.toString(), color = Color(0xFFEF6C00), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("IN_PROGRESS", color = Color.Gray, fontSize = 14.sp)
+                                Text(insights.inProgress.toString(), color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("CLOSED", color = Color.Gray, fontSize = 14.sp)
+                                Text(insights.closed.toString(), color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Row(
+                }
+                else -> {
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF1F8E9)
                     ) {
-                        Text("Top Category", color = Color.Gray, fontSize = 14.sp)
-                        Text("Sanitation", color = Color(0xFF00875A), fontWeight = FontWeight.Bold)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFF00875A), modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
             }
@@ -418,6 +445,218 @@ fun DashboardScreen() {
         }
     }
 }
+
+@Composable
+private fun DashboardSnapshotSection(
+    dashboardUiState: DashboardUiState,
+    onOpenReports: () -> Unit
+) {
+    when (dashboardUiState) {
+        DashboardUiState.Loading -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF00875A))
+                }
+            }
+        }
+
+        is DashboardUiState.Error -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = dashboardUiState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFD32F2F)
+                    )
+                }
+            }
+        }
+
+        is DashboardUiState.Success -> {
+            val data = dashboardUiState.data
+            val snapshot = data.myReportsSnapshot
+            val pending = data.myPendingAction
+            val risk = data.nearbyRiskSummary
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "My Reports Snapshot",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SnapshotStatChip(
+                            label = "OPEN",
+                            count = snapshot.open,
+                            background = Color(0xFFFFF3E0),
+                            textColor = Color(0xFFEF6C00),
+                            modifier = Modifier.weight(1f)
+                        )
+                        SnapshotStatChip(
+                            label = "IN_PROGRESS",
+                            count = snapshot.inProgress,
+                            background = Color(0xFFE3F2FD),
+                            textColor = Color(0xFF1565C0),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SnapshotStatChip(
+                            label = "RESOLVED",
+                            count = snapshot.resolved,
+                            background = Color(0xFFE8F5E9),
+                            textColor = Color(0xFF2E7D32),
+                            modifier = Modifier.weight(1f)
+                        )
+                        SnapshotStatChip(
+                            label = "REJECTED",
+                            count = snapshot.rejected,
+                            background = Color(0xFFFFEBEE),
+                            textColor = Color(0xFFC62828),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFF7FAF8)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "My Pending Action",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "You have ${pending.unresolved} unresolved reports",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            TextButton(onClick = onOpenReports) {
+                                Text(pending.cta.label)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFF1F8E9)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Nearby Risk Summary",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "${risk.highPriority} high-priority reports",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF2D2D2D)
+                            )
+                            Text(
+                                text = "${risk.open} open reports in your area",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "Coverage: ${risk.coverageText}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF00875A),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnapshotStatChip(
+    label: String,
+    count: Int,
+    background: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = background
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.titleSmall,
+                color = textColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
 
 @Composable
 private fun NearbyIssuesListSection(
@@ -768,6 +1007,12 @@ private sealed interface MapUiState {
         val searchMode: String = "unknown"
     ) : MapUiState
     data class Error(val message: String) : MapUiState
+}
+
+private sealed interface DashboardUiState {
+    data object Loading : DashboardUiState
+    data class Success(val data: DashboardResponse) : DashboardUiState
+    data class Error(val message: String) : DashboardUiState
 }
 
 private data class MapIssue(

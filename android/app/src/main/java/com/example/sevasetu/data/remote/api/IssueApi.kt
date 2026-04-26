@@ -2,6 +2,7 @@ package com.example.sevasetu.data.remote.api
 
 import com.example.sevasetu.data.remote.dto.CreateIssueRequest
 import com.example.sevasetu.data.remote.dto.CreateIssueResponse
+import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
 import retrofit2.Response
@@ -33,4 +34,13 @@ interface IssueApi {
     suspend fun createIssue(
         @Body request: CreateIssueRequest
     ): Response<CreateIssueResponse>
+
+    @GET("/dashboard")
+    suspend fun getDashboard(
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("radiusKm") radiusKm: Double = 5.0,
+        @Query("districtId") districtId: String? = null,
+        @Query("insightWindowDays") insightWindowDays: Int = 30
+    ): Response<DashboardResponse>
 }

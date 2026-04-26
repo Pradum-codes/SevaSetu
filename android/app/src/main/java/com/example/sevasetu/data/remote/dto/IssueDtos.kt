@@ -71,3 +71,52 @@ data class IssueDto(
 data class IssueImageDto(
     @SerializedName("imageUrl") val imageUrl: String?
 )
+
+data class DashboardResponse(
+    @SerializedName("searchContext") val searchContext: SearchContext,
+    @SerializedName("myReportsSnapshot") val myReportsSnapshot: MyReportsSnapshot,
+    @SerializedName("myPendingAction") val myPendingAction: MyPendingAction,
+    @SerializedName("nearbyRiskSummary") val nearbyRiskSummary: NearbyRiskSummary,
+    @SerializedName("nearbyInsights") val nearbyInsights: NearbyInsights,
+    @SerializedName("generatedAt") val generatedAt: String? = null
+)
+
+data class SearchContext(
+    @SerializedName("mode") val mode: String, // "location" or "district"
+    @SerializedName("location") val location: LocationSearchInfo? = null,
+    @SerializedName("district") val district: DistrictSearchInfo? = null
+)
+
+data class MyReportsSnapshot(
+    @SerializedName("open") val open: Int,
+    @SerializedName("inProgress") val inProgress: Int,
+    @SerializedName("resolved") val resolved: Int,
+    @SerializedName("rejected") val rejected: Int,
+    @SerializedName("total") val total: Int
+)
+
+data class MyPendingAction(
+    @SerializedName("unresolved") val unresolved: Int,
+    @SerializedName("cta") val cta: CtaAction,
+    @SerializedName("label") val label: String? = null
+)
+
+data class CtaAction(
+    @SerializedName("type") val type: String,
+    @SerializedName("filters") val filters: List<String>,
+    @SerializedName("label") val label: String
+)
+
+data class NearbyRiskSummary(
+    @SerializedName("highPriority") val highPriority: Int,
+    @SerializedName("open") val open: Int,
+    @SerializedName("totalNearby") val totalNearby: Int,
+    @SerializedName("coverageText") val coverageText: String
+)
+
+data class NearbyInsights(
+    @SerializedName("open") val open: Int,
+    @SerializedName("inProgress") val inProgress: Int,
+    @SerializedName("closed") val closed: Int
+)
+

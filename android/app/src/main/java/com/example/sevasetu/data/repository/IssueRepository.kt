@@ -3,6 +3,7 @@ package com.example.sevasetu.data.repository
 import com.example.sevasetu.data.remote.api.IssueApi
 import com.example.sevasetu.data.remote.dto.CreateIssueRequest
 import com.example.sevasetu.data.remote.dto.CreateIssueResponse
+import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
 import org.json.JSONObject
@@ -72,6 +73,31 @@ class IssueRepository(
             }
 
             requireNotNull(response.body()) { "create issue response body is null" }
+        }
+    }
+
+    suspend fun getDashboard(
+        lat: Double? = null,
+        lng: Double? = null,
+        radiusKm: Double = 5.0,
+        districtId: String? = null,
+        insightWindowDays: Int = 30
+    ): Result<DashboardResponse> {
+        return runCatching {
+            val response = issueApi.getDashboard(
+                lat = lat,
+                lng = lng,
+                radiusKm = radiusKm,
+                districtId = districtId,
+                insightWindowDays = insightWindowDays
+            )
+
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Failed to fetch dashboard (${response.code()})")
+            }
+
+            requireNotNull(response.body()) { "dashboard response body is null" }
         }
     }
 
