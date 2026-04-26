@@ -6,6 +6,12 @@ import android.graphics.drawable.BitmapDrawable
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
+import android.Manifest
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.Task
+import android.location.Location
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -85,7 +91,8 @@ fun DashboardScreen() {
     val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
     val scope = rememberCoroutineScope()
     var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
-    
+    var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+
     // Get user's district from TokenManager
     val userDistrictId = remember {
         val tokenManager = com.example.sevasetu.utils.TokenManager(context)
@@ -103,19 +110,72 @@ fun DashboardScreen() {
         if (dist != null) GeoPoint(dist.lat, dist.lng) else GeoPoint(31.6340, 74.8723)
     }
 
+    val mapCenterPoint = remember(currentLocation, userDistrictCoords) {
+        currentLocation?.let { GeoPoint(it.first, it.second) } ?: userDistrictCoords
+    }
+
+    val fetchCurrentLocation: (callback: (Pair<Double, Double>?) -> Unit) -> Unit = { callback ->
+        try {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                fusedLocationClient.lastLocation
+                    .addOnSuccessListener { location: Location? ->
+                        if (location != null) {
+                            callback(Pair(location.latitude, location.longitude))
+                        } else {
+                            callback(null)
+                        }
+                    }
+                    .addOnFailureListener {
+                        callback(null)
+                    }
+            } else {
+                callback(null)
+            }
+        } catch (e: Exception) {
+            callback(null)
+        }
+    }
+
     val fetchNearbyIssues: () -> Unit = {
         scope.launch {
             mapUiState = MapUiState.Loading
-            issueRepository.getNearbyIssues(userDistrictId)
-                .onSuccess { issues ->
-                    val mapIssues = issues.mapNotNull { it.toMapIssue() }
-                    mapUiState = MapUiState.Success(mapIssues)
-                }
-                .onFailure { throwable ->
-                    mapUiState = MapUiState.Error(
-                        throwable.message ?: "Unable to load nearby issues"
+
+            // Try to get current location first
+            fetchCurrentLocation { location ->
+                scope.launch {
+                    currentLocation = location
+                    issueRepository.getNearbyIssues(
+                        lat = location?.first,
+                        lng = location?.second,
+                        radiusKm = 5.0,
+                        districtId = userDistrictId
                     )
+                        .onSuccess { response ->
+                            val mapIssues = response.issues.mapNotNull { it.toMapIssue() }
+                            val searchMode = response.searchMode
+                            val displayInfo = when {
+                                searchMode == "location" && response.location != null -> {
+                                    "Location-based search (${response.location.radiusKm}km)"
+                                }
+                                searchMode == "district" && response.district != null -> {
+                                    "District-based search (${response.district.name})"
+                                }
+                                else -> "Nearby Issues"
+                            }
+                            mapUiState = MapUiState.Success(mapIssues, displayInfo, searchMode)
+                        }
+                        .onFailure { throwable ->
+                            mapUiState = MapUiState.Error(
+                                throwable.message ?: "Unable to load nearby issues"
+                            )
+                        }
                 }
+            }
         }
     }
 
@@ -249,7 +309,7 @@ fun DashboardScreen() {
             DashboardMapSection(
                 mapUiState = mapUiState,
                 userDistrictName = userDistrictName,
-                centerPoint = userDistrictCoords,
+                centerPoint = mapCenterPoint,
                 onRetry = fetchNearbyIssues
             )
 
@@ -410,10 +470,15 @@ private fun NearbyIssuesListSection(
             mapUiState.issues.forEachIndexed { index, issue ->
                 val (statusContainerColor, statusTextColor) = statusColorsForPriority(issue.priority)
                 val status = statusLabelForPriority(issue.priority)
+                val modeLabel = when (mapUiState.searchMode) {
+                    "location" -> "Nearby via GPS"
+                    "district" -> "District-wide"
+                    else -> "Nearby"
+                }
 
                 IssueCard(
                     title = issue.title,
-                    time = "Nearby",
+                    time = modeLabel,
                     desc = "Community reported issue in your area.",
                     location = issue.addressText ?: "Location unavailable",
                     imageUrl = issue.imageUrl,
@@ -464,7 +529,10 @@ private fun DashboardMapSection(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Your District: $userDistrictName",
+                    text = when (mapUiState) {
+                        is MapUiState.Success -> mapUiState.displayInfo
+                        else -> "Your District: $userDistrictName"
+                    },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF00875A),
@@ -536,6 +604,12 @@ private fun DashboardMapSection(
                                 text = "${mapUiState.issues.size} nearby issues mapped",
                                 fontSize = 11.sp,
                                 color = Color.Gray
+                            )
+                            Text(
+                                text = "Mode: ${mapUiState.searchMode.capitalized()}",
+                                fontSize = 9.sp,
+                                color = Color.Gray,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                             )
                         }
                     }
@@ -688,7 +762,11 @@ private fun IssueDto.resolvePreviewImageUrl(): String? {
 
 private sealed interface MapUiState {
     data object Loading : MapUiState
-    data class Success(val issues: List<MapIssue>) : MapUiState
+    data class Success(
+        val issues: List<MapIssue>,
+        val displayInfo: String = "Nearby Issues",
+        val searchMode: String = "unknown"
+    ) : MapUiState
     data class Error(val message: String) : MapUiState
 }
 
@@ -824,4 +902,8 @@ fun DashboardPreview() {
     SevaSetuTheme {
         DashboardScreen()
     }
+}
+
+private fun String.capitalized(): String {
+    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 }

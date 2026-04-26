@@ -3,7 +3,24 @@ package com.example.sevasetu.data.remote.dto
 import com.google.gson.annotations.SerializedName
 
 data class NearbyIssuesResponse(
+    @SerializedName("searchMode") val searchMode: String, // "location" or "district"
+    @SerializedName("location") val location: LocationSearchInfo? = null,
+    @SerializedName("district") val district: DistrictSearchInfo? = null,
+    @SerializedName("page") val page: Int,
+    @SerializedName("limit") val limit: Int,
     @SerializedName("issues") val issues: List<IssueDto>
+)
+
+data class LocationSearchInfo(
+    @SerializedName("lat") val lat: Double,
+    @SerializedName("lng") val lng: Double,
+    @SerializedName("radiusKm") val radiusKm: Double
+)
+
+data class DistrictSearchInfo(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("category") val category: String
 )
 
 data class ReportsIssuesResponse(

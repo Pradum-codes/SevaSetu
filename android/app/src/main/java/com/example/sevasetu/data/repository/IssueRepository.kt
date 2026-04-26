@@ -3,25 +3,40 @@ package com.example.sevasetu.data.repository
 import com.example.sevasetu.data.remote.api.IssueApi
 import com.example.sevasetu.data.remote.dto.CreateIssueRequest
 import com.example.sevasetu.data.remote.dto.CreateIssueResponse
-import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
 import org.json.JSONObject
 
 class IssueRepository(
     private val issueApi: IssueApi
 ) {
-    suspend fun getNearbyIssues(districtId: String): Result<List<IssueDto>> {
+    suspend fun getNearbyIssues(
+        lat: Double? = null,
+        lng: Double? = null,
+        radiusKm: Double = 5.0,
+        districtId: String? = null,
+        page: Int = 1,
+        limit: Int = 50
+    ): Result<NearbyIssuesResponse> {
         return runCatching {
-            val response = issueApi.getNearbyIssues(districtId = districtId)
+            val safePage = page.coerceAtLeast(1)
+            val safeLimit = limit.coerceIn(1, 100)
+
+            val response = issueApi.getNearbyIssues(
+                lat = lat,
+                lng = lng,
+                radiusKm = radiusKm,
+                districtId = districtId,
+                page = safePage,
+                limit = safeLimit
+            )
+
             if (!response.isSuccessful) {
                 val message = extractErrorMessage(response.errorBody()?.string())
                 throw IllegalStateException(message ?: "Failed to fetch nearby issues (${response.code()})")
             }
 
-            val issues = response.body()?.issues.orEmpty()
-            issues.filter { issue ->
-                issue.lat != null && issue.lng != null
-            }
+            requireNotNull(response.body()) { "nearby issues response body is null" }
         }
     }
 

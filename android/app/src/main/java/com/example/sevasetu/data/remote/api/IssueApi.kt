@@ -14,9 +14,12 @@ interface IssueApi {
 
     @GET("/issues/nearby")
     suspend fun getNearbyIssues(
-        @Query("districtId") districtId: String,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("radiusKm") radiusKm: Double = 5.0,
+        @Query("districtId") districtId: String? = null,
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 100
+        @Query("limit") limit: Int = 50
     ): Response<NearbyIssuesResponse>
 
     @GET("/issues/reports")
