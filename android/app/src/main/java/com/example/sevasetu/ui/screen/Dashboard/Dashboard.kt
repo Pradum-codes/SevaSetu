@@ -10,6 +10,8 @@ import android.Manifest
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import android.location.Location
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -120,22 +122,41 @@ fun DashboardScreen() {
 
     val fetchCurrentLocation: (callback: (Pair<Double, Double>?) -> Unit) -> Unit = { callback ->
         try {
-            if (ContextCompat.checkSelfPermission(
+            val hasLocationPermission = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
-            ) {
+
+            if (hasLocationPermission) {
                 val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                fusedLocationClient.lastLocation
+                val tokenSource = CancellationTokenSource()
+                fusedLocationClient
+                    .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, tokenSource.token)
                     .addOnSuccessListener { location: Location? ->
                         if (location != null) {
                             callback(Pair(location.latitude, location.longitude))
                         } else {
-                            callback(null)
+                            fusedLocationClient.lastLocation
+                                .addOnSuccessListener { lastLocation: Location? ->
+                                    callback(lastLocation?.let { Pair(it.latitude, it.longitude) })
+                                }
+                                .addOnFailureListener {
+                                    callback(null)
+                                }
                         }
                     }
                     .addOnFailureListener {
-                        callback(null)
+                        fusedLocationClient.lastLocation
+                            .addOnSuccessListener { lastLocation: Location? ->
+                                callback(lastLocation?.let { Pair(it.latitude, it.longitude) })
+                            }
+                            .addOnFailureListener {
+                                callback(null)
+                            }
                     }
             } else {
                 callback(null)
@@ -954,13 +975,18 @@ private fun createMarkerIcon(
     context: android.content.Context,
     fillColor: Int
 ): BitmapDrawable {
-    val size = 72
-    val radius = 18f
+    val size = 96
     val cx = size / 2f
-    val cy = size / 2f
+    val headCy = 34f
+    val headRadius = 24f
+    val tipY = 82f
 
     val bitmap = createBitmap(size, size)
     val canvas = Canvas(bitmap)
+    val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = AndroidColor.argb(55, 0, 0, 0)
+    }
     val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = fillColor
@@ -968,11 +994,38 @@ private fun createMarkerIcon(
     val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         color = AndroidColor.WHITE
-        strokeWidth = 6f
+        strokeWidth = 5f
+        strokeJoin = Paint.Join.ROUND
+    }
+    val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = AndroidColor.WHITE
+    }
+    val centerAccentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = fillColor
     }
 
-    canvas.drawCircle(cx, cy, radius, fillPaint)
-    canvas.drawCircle(cx, cy, radius, strokePaint)
+    val shadowPath = android.graphics.Path().apply {
+        addCircle(cx + 3f, headCy + 4f, headRadius, android.graphics.Path.Direction.CW)
+        moveTo(cx - 12f, headCy + 20f)
+        lineTo(cx + 3f, tipY + 5f)
+        lineTo(cx + 18f, headCy + 20f)
+        close()
+    }
+    canvas.drawPath(shadowPath, shadowPaint)
+
+    val pinPath = android.graphics.Path().apply {
+        addCircle(cx, headCy, headRadius, android.graphics.Path.Direction.CW)
+        moveTo(cx - 14f, headCy + 18f)
+        lineTo(cx, tipY)
+        lineTo(cx + 14f, headCy + 18f)
+        close()
+    }
+    canvas.drawPath(pinPath, fillPaint)
+    canvas.drawPath(pinPath, strokePaint)
+    canvas.drawCircle(cx, headCy, 10f, centerPaint)
+    canvas.drawCircle(cx, headCy, 4f, centerAccentPaint)
 
     return bitmap.toDrawable(context.resources)
 }
