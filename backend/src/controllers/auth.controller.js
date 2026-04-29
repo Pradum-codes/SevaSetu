@@ -1,19 +1,12 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import prisma from '../config/prisma.js';
 import { generateOtp } from '../utils/otp.js';
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
-
-const createEmailTransporter = () =>
-  nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
+const DEFAULT_EMAIL_FROM = 'SevaSetu <onboarding@resend.dev>';
+const OTP_EXPIRY_MINUTES = OTP_EXPIRY_MS / 60 / 1000;
 
 const isEmailValid = (email) =>
   typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -52,6 +45,54 @@ const getRegistrationStatus = (user) => ({
   locationCaptured: hasCoordinates(user)
 });
 
+const buildOtpEmailHtml = ({ otp }) => `
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Your SevaSetu OTP</title>
+  </head>
+  <body style="margin:0;background:#f3f7f4;font-family:Arial,Helvetica,sans-serif;color:#17231d;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f7f4;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #dce8df;border-radius:24px;overflow:hidden;box-shadow:0 18px 48px rgba(23,35,29,0.12);">
+            <tr>
+              <td style="background:#0f6b45;padding:28px 28px 24px;text-align:center;">
+                <div style="width:76px;height:76px;margin:0 auto 14px;border-radius:20px;border:3px solid rgba(255,255,255,0.72);background:#ffffff;color:#0f6b45;font-size:28px;line-height:76px;font-weight:800;text-align:center;">SS</div>
+                <div style="font-size:24px;line-height:32px;font-weight:700;color:#ffffff;">SevaSetu</div>
+                <div style="font-size:14px;line-height:22px;color:#d8f4e5;">Secure sign-in verification</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:34px 30px 10px;text-align:center;">
+                <div style="font-size:16px;line-height:24px;color:#506158;">Use this one-time password to continue signing in.</div>
+                <div style="margin:24px auto 18px;display:inline-block;background:#f7fbf8;border:1px solid #cfe3d5;border-radius:18px;padding:18px 24px;">
+                  <div style="font-size:38px;line-height:44px;font-weight:800;letter-spacing:8px;color:#0f6b45;font-family:'Courier New',Courier,monospace;">${otp}</div>
+                </div>
+                <div style="font-size:15px;line-height:23px;color:#506158;">This code expires in <strong style="color:#17231d;">${OTP_EXPIRY_MINUTES} minutes</strong>.</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 30px 34px;">
+                <div style="background:#fff8e8;border:1px solid #f1d49a;border-radius:16px;padding:14px 16px;font-size:14px;line-height:22px;color:#6b4b10;text-align:center;">
+                  Do not share this code with anyone. SevaSetu will never ask for your OTP outside the app.
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f8fbf9;border-top:1px solid #e4eee7;padding:18px 28px;text-align:center;font-size:12px;line-height:18px;color:#708078;">
+                If you did not request this code, you can safely ignore this email.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
 export const sendOtp = async (req, res) => {
   try {
     const email = req.body?.email?.trim()?.toLowerCase();
@@ -65,7 +106,7 @@ export const sendOtp = async (req, res) => {
       return res.status(404).json({ error: 'User not found. Please register first' });
     }
 
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    if (!process.env.RESEND_API_KEY) {
       return res.status(500).json({ error: 'Email service is not configured' });
     }
 
@@ -81,13 +122,15 @@ export const sendOtp = async (req, res) => {
     });
 
     try {
-      const transporter = createEmailTransporter();
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error: emailError } = await resend.emails.send({
+        from: process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM,
         to: email,
-        subject: 'Your SevaSetu OTP',
-        text: `Your OTP is ${otp}. It will expire in 5 minutes.`
+        subject: 'Your SevaSetu verification code',
+        text: `Your SevaSetu OTP is ${otp}. It will expire in ${OTP_EXPIRY_MINUTES} minutes. Do not share this code with anyone.`,
+        html: buildOtpEmailHtml({ otp })
       });
+      if (emailError) throw emailError;
     } catch (mailError) {
       await prisma.otp.delete({ where: { id: otpRecord.id } });
       throw mailError;
