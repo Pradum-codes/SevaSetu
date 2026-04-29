@@ -34,6 +34,46 @@ const issueSelect = {
   }
 };
 
+const issueTimelineSelect = {
+  id: true,
+  createdAt: true,
+  updates: {
+    where: {
+      visibleToCitizen: true
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      message: true,
+      remarks: true,
+      oldStatus: true,
+      newStatus: true,
+      type: true,
+      proofImageUrl: true,
+      visibleToCitizen: true,
+      createdAt: true,
+      actor: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      fromDepartment: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      toDepartment: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  }
+};
+
 export const findIssueByClientId = async (clientId) => {
   return prisma.issue.findUnique({
     where: { clientId },
@@ -89,6 +129,13 @@ export const findCategoryById = async (id) => {
   return prisma.category.findUnique({
     where: { id },
     select: { id: true, name: true }
+  });
+};
+
+export const findIssueTimelineById = async (id) => {
+  return prisma.issue.findUnique({
+    where: { id },
+    select: issueTimelineSelect
   });
 };
 

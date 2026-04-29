@@ -4,6 +4,7 @@ import profileCompletionMiddleware from '../middlewares/profile-completion.middl
 import {
   createIssue,
   getIssueSync,
+  getIssueTimeline,
   getIssues,
   getMyReports,
   getNearbyIssues
@@ -13,6 +14,7 @@ const router = Router();
 
 router.get('/nearby', getNearbyIssues);
 router.get('/reports', authMiddleware, getMyReports);
+router.get('/:issueId/timeline', getIssueTimeline);
 router.get('/', getIssues);
 router.get('/sync', authMiddleware, getIssueSync);
 router.post('/', authMiddleware, profileCompletionMiddleware, createIssue);

@@ -2,6 +2,7 @@ import {
   createIssue as createIssueService,
   IssueServiceError,
   listNearbyIssuesByDistrict,
+  getIssueTimeline as getIssueTimelineService,
   listUserReports,
   listIssues as listIssuesService,
   syncIssues as syncIssuesService
@@ -57,6 +58,15 @@ export const getIssueSync = async (req, res) => {
 export const getNearbyIssues = async (req, res) => {
   try {
     const payload = await listNearbyIssuesByDistrict({ query: req.query });
+    return res.json(payload);
+  } catch (error) {
+    return handleIssueError(error, res);
+  }
+};
+
+export const getIssueTimeline = async (req, res) => {
+  try {
+    const payload = await getIssueTimelineService({ issueId: req.params.issueId });
     return res.json(payload);
   } catch (error) {
     return handleIssueError(error, res);

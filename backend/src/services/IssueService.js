@@ -2,6 +2,7 @@ import {
   createIssue as createIssueRecord,
   findCategoryById,
   findIssueByClientId,
+  findIssueTimelineById,
   findIssues,
   findJurisdictionById,
   findJurisdictionsByParentIds
@@ -30,6 +31,17 @@ export class IssueServiceError extends Error {
     this.statusCode = statusCode;
   }
 }
+
+const TIMELINE_TYPE_MAP = new Set([
+  'CREATED',
+  'ASSIGNED',
+  'FORWARDED',
+  'REMARK_ADDED',
+  'STATUS_CHANGED',
+  'RESOLUTION_SUBMITTED',
+  'CLOSED_WITH_PROOF',
+  'REJECTED'
+]);
 
 const toTrimmedString = (value) => {
   if (value === undefined || value === null) return '';
@@ -99,6 +111,14 @@ const parsePositiveInt = (value, defaultValue, max) => {
     throw new IssueServiceError('Query parameter must be a positive integer');
   }
   return Math.min(parsed, max);
+};
+
+const parseIssueId = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new IssueServiceError('issueId must be a positive integer');
+  }
+  return parsed;
 };
 
 const parseOptionalDate = (value) => {
@@ -251,6 +271,46 @@ const collectDescendantJurisdictionIds = async (rootId) => {
 
   return [...visited];
 };
+
+const inferTimelineType = (update) => {
+  if (update.type && TIMELINE_TYPE_MAP.has(update.type)) {
+    return update.type;
+  }
+
+  if (update.proofImageUrl) {
+    return 'CLOSED_WITH_PROOF';
+  }
+
+  if (update.oldStatus && update.newStatus && update.oldStatus !== update.newStatus) {
+    return 'STATUS_CHANGED';
+  }
+
+  if (update.newStatus === 'assigned') {
+    return 'ASSIGNED';
+  }
+
+  if (update.newStatus === 'forwarded') {
+    return 'FORWARDED';
+  }
+
+  if (update.newStatus === 'resolved') {
+    return 'RESOLUTION_SUBMITTED';
+  }
+
+  return 'REMARK_ADDED';
+};
+
+const mapTimelineUpdate = (update) => ({
+  type: inferTimelineType(update),
+  remarks: update.remarks || update.message || '',
+  fromDepartment: update.fromDepartment?.name || null,
+  toDepartment: update.toDepartment?.name || null,
+  oldStatus: update.oldStatus || null,
+  newStatus: update.newStatus || null,
+  proofImageUrl: update.proofImageUrl || null,
+  actor: update.actor?.name || null,
+  createdAt: update.createdAt
+});
 
 export const createIssue = async ({ payload, userId }) => {
   const clientId = toTrimmedString(payload?.clientId || payload?.client_id);
@@ -494,4 +554,33 @@ export const listUserReports = async ({ userId, query }) => {
   });
 
   return { page, limit, issues };
+};
+
+export const getIssueTimeline = async ({ issueId }) => {
+  const parsedIssueId = parseIssueId(issueId);
+  const issue = await findIssueTimelineById(parsedIssueId);
+
+  if (!issue) {
+    throw new IssueServiceError('Issue not found', 404);
+  }
+
+  const timeline = [
+    {
+      type: 'CREATED',
+      remarks: 'Issue reported by citizen.',
+      fromDepartment: null,
+      toDepartment: null,
+      oldStatus: null,
+      newStatus: 'open',
+      proofImageUrl: null,
+      actor: null,
+      createdAt: issue.createdAt
+    },
+    ...issue.updates.map(mapTimelineUpdate)
+  ];
+
+  return {
+    issueId: issue.id,
+    timeline
+  };
 };

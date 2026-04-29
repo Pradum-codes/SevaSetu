@@ -63,6 +63,7 @@ model User {
   votes          Vote[]
   userRoles      UserRole[]
   authorityProfile AuthorityProfile?
+  issueUpdates   IssueUpdate[]
 
   @@map("users")
 }
@@ -171,6 +172,8 @@ model Department {
   name              String             @unique
   issues            Issue[]
   authorityProfiles AuthorityProfile[]
+  issueUpdatesFrom  IssueUpdate[]      @relation("IssueUpdateFromDepartment")
+  issueUpdatesTo    IssueUpdate[]      @relation("IssueUpdateToDepartment")
 
   @@map("departments")
 }
@@ -200,12 +203,24 @@ model AuthorityProfile {
 }
 
 model IssueUpdate {
-  id        Int     @id @default(autoincrement())
-  issueId   Int
-  message   String
-  createdAt DateTime @default(now())
+  id               Int      @id @default(autoincrement())
+  issueId          Int
+  actorUserId      String?
+  fromDepartmentId Int?
+  toDepartmentId   Int?
+  oldStatus        String?
+  newStatus        String?
+  type             String?
+  message          String
+  remarks          String?
+  proofImageUrl    String?
+  visibleToCitizen Boolean  @default(true)
+  createdAt        DateTime @default(now())
 
-  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issue          Issue        @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorUserId], references: [id])
+  fromDepartment Department?  @relation("IssueUpdateFromDepartment", fields: [fromDepartmentId], references: [id])
+  toDepartment   Department?  @relation("IssueUpdateToDepartment", fields: [toDepartmentId], references: [id])
 
   @@map("issue_updates")
 }
