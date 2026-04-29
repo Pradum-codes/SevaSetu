@@ -37,3 +37,11 @@ After running seed, use the printed output to map category names to IDs for API 
 - A seed script avoids exposing dangerous setup endpoints to clients.
 
 You can add admin CRUD routes later for managing master data after role-based middleware is in place.
+
+
+## Seeding for admin
+```
+npm install
+npm run build
+npm run create-admin -- --email admin@example.com --password "secret" --name "Admin Name"
+```

@@ -39,6 +39,8 @@ enum JurisdictionCategory {
 model User {
   id                     String    @id @default(uuid())
   email                  String    @unique
+  passwordHash           String?
+  isActive               Boolean   @default(true)
   name                   String?
   phone                  String?
   gender                 String?
