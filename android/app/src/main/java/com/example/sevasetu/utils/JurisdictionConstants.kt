@@ -59,6 +59,14 @@ object JurisdictionConstants {
     const val SANGRUR_BLOCK_NAME = "Sangrur Block"
     const val SANGRUR_PANCHAYAT_ID = "20000005-2100-0000-0000-000000000000"
     const val SANGRUR_PANCHAYAT_NAME = "Sangrur Panchayat"
+
+    // Kapurthala (Urban)
+    const val KAPURTHALA_DISTRICT_ID = "20000006-0000-0000-0000-000000000000"
+    const val KAPURTHALA_DISTRICT_NAME = "Kapurthala"
+    const val KAPURTHALA_CITY_ID = "20000006-1000-0000-0000-000000000000"
+    const val KAPURTHALA_CITY_NAME = "Kapurthala City"
+    const val KAPURTHALA_WARD_ID = "20000006-1110-0000-0000-000000000000"
+    const val KAPURTHALA_WARD_NAME = "Kapurthala Ward"
     
     // ==================== DATA STRUCTURES ====================
     
@@ -91,7 +99,8 @@ object JurisdictionConstants {
         District(LUDHIANA_DISTRICT_ID, LUDHIANA_DISTRICT_NAME, "URBAN", 30.9010, 75.8573),
         District(JALANDHAR_DISTRICT_ID, JALANDHAR_DISTRICT_NAME, "URBAN", 31.3260, 75.5762),
         District(HOSHIARPUR_DISTRICT_ID, HOSHIARPUR_DISTRICT_NAME, "RURAL", 31.5143, 75.9115),
-        District(SANGRUR_DISTRICT_ID, SANGRUR_DISTRICT_NAME, "RURAL", 30.2290, 75.8412)
+        District(SANGRUR_DISTRICT_ID, SANGRUR_DISTRICT_NAME, "RURAL", 30.2290, 75.8412),
+        District(KAPURTHALA_DISTRICT_ID, KAPURTHALA_DISTRICT_NAME, "URBAN", 31.3715, 75.3937)
     )
     
     // ==================== URBAN MAPPINGS ====================
@@ -114,6 +123,12 @@ object JurisdictionConstants {
             cityName = JALANDHAR_CITY_NAME,
             wardId = JALANDHAR_WARD_ID,
             wardName = JALANDHAR_WARD_NAME
+        ),
+        KAPURTHALA_DISTRICT_ID to UrbanLocation(
+            cityId = KAPURTHALA_CITY_ID,
+            cityName = KAPURTHALA_CITY_NAME,
+            wardId = KAPURTHALA_WARD_ID,
+            wardName = KAPURTHALA_WARD_NAME
         )
     )
     
@@ -182,5 +197,28 @@ object JurisdictionConstants {
         } else {
             getRuralLocation(districtId)?.panchayatId
         }
+    }
+
+    fun findDistrictByName(name: String?): District? {
+        val normalizedName = normalizeDistrictName(name)
+        if (normalizedName.isBlank()) return null
+
+        return DISTRICTS.firstOrNull { district ->
+            normalizeDistrictName(district.name) == normalizedName
+        }
+    }
+
+    fun findDistrictForAddress(locality: String?, district: String?): District? {
+        return findDistrictByName(district) ?: findDistrictByName(locality)
+    }
+
+    fun normalizeDistrictName(name: String?): String {
+        return name
+            ?.lowercase()
+            ?.replace(Regex("[^a-z0-9\\s]"), " ")
+            ?.replace(Regex("\\bdistrict\\b"), " ")
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            .orEmpty()
     }
 }

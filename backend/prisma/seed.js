@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Punjab State + 5 Districts (3 Urban, 2 Rural) with their hierarchies
+// Punjab State + Districts with their hierarchies
 const IDS = {
   // State
   punjabState: '10000000-0000-0000-0000-000000000000',
@@ -30,7 +30,12 @@ const IDS = {
   // Sangrur (Rural)
   sangrurDistrict: '20000005-0000-0000-0000-000000000000',
   sangrurBlock: '20000005-2000-0000-0000-000000000000',
-  sangrurPanchayat: '20000005-2100-0000-0000-000000000000'
+  sangrurPanchayat: '20000005-2100-0000-0000-000000000000',
+
+  // Kapurthala (Urban)
+  kapurthalaDistrict: '20000006-0000-0000-0000-000000000000',
+  kapurthalaCity: '20000006-1000-0000-0000-000000000000',
+  kapurthalaWard: '20000006-1110-0000-0000-000000000000'
 };
 
 const seedRoles = async () => {
@@ -192,6 +197,34 @@ const seedJurisdictions = async () => {
     category: 'RURAL',
     parentId: IDS.sangrurBlock
   });
+
+  // ============ KAPURTHALA (URBAN) ============
+  await upsertJurisdiction({
+    id: IDS.kapurthalaDistrict,
+    name: 'Kapurthala District',
+    type: 'DISTRICT',
+    category: 'URBAN',
+    parentId: IDS.punjabState,
+    pincode: '144411'
+  });
+
+  await upsertJurisdiction({
+    id: IDS.kapurthalaCity,
+    name: 'Kapurthala City',
+    type: 'CITY',
+    category: 'URBAN',
+    parentId: IDS.kapurthalaDistrict,
+    pincode: '144411'
+  });
+
+  await upsertJurisdiction({
+    id: IDS.kapurthalaWard,
+    name: 'Kapurthala Ward',
+    type: 'WARD',
+    category: 'URBAN',
+    parentId: IDS.kapurthalaCity,
+    pincode: '144411'
+  });
 };
 
 const seedDepartments = async () => {
@@ -269,6 +302,11 @@ const main = async () => {
   console.log(`districtId=${IDS.sangrurDistrict}`);
   console.log(`blockId=${IDS.sangrurBlock}`);
   console.log(`panchayatId=${IDS.sangrurPanchayat}\n`);
+
+  console.log('KAPURTHALA DISTRICT (URBAN):');
+  console.log(`districtId=${IDS.kapurthalaDistrict}`);
+  console.log(`cityId=${IDS.kapurthalaCity}`);
+  console.log(`wardId=${IDS.kapurthalaWard}\n`);
 
   const categories = await prisma.category.findMany({
     orderBy: { id: 'asc' },

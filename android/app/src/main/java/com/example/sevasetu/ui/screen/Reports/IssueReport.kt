@@ -106,6 +106,8 @@ import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.CategoryConstants
 import com.example.sevasetu.utils.JurisdictionConstants
+import com.example.sevasetu.utils.LocationAddressResolver
+import com.example.sevasetu.utils.ResolvedLocationAddress
 import com.example.sevasetu.utils.TokenManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -168,6 +170,12 @@ fun IssueReportScreen() {
         remember(appContext) { LocationServices.getFusedLocationProviderClient(appContext) }
     }
 
+    val locationAddressResolver = if (inPreview) {
+        null
+    } else {
+        remember(appContext) { LocationAddressResolver(appContext) }
+    }
+
     val clientId = rememberSaveable { UUID.randomUUID().toString() }
     var title by rememberSaveable { mutableStateOf("") }
     var addressText by rememberSaveable { mutableStateOf("") }
@@ -177,32 +185,41 @@ fun IssueReportScreen() {
     var selectedCategoryId by rememberSaveable { mutableStateOf(CategoryConstants.ROADS_INFRASTRUCTURE_ID) }
     var selectedImageUris by rememberSaveable { mutableStateOf(listOf<String>()) }
     var isCategoryExpanded by remember { mutableStateOf(false) }
+    var selectedPriority by rememberSaveable { mutableStateOf("medium") }
+    var isPriorityExpanded by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
     var formMessage by remember { mutableStateOf<String?>(null) }
     var formError by remember { mutableStateOf<String?>(null) }
     var currentLat by remember { mutableStateOf<Double?>(null) }
     var currentLng by remember { mutableStateOf<Double?>(null) }
+    var resolvedLocationAddress by remember { mutableStateOf<ResolvedLocationAddress?>(null) }
     var locationStatus by remember { mutableStateOf("Location not detected yet") }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    val selectedDistrictId = if (inPreview) {
+    val profileDistrictId = if (inPreview) {
         JurisdictionConstants.AMRITSAR_DISTRICT_ID
     } else {
         tokenManager?.getUserDistrict()?.trim().orEmpty()
     }
 
-    val district = remember(selectedDistrictId) {
-        JurisdictionConstants.DISTRICTS.find { it.id == selectedDistrictId }
+    val detectedMatchedDistrictId = resolvedLocationAddress?.matchedDistrict?.id.orEmpty()
+    val reportDistrictId = detectedMatchedDistrictId.ifBlank { profileDistrictId }
+
+    val district = remember(reportDistrictId) {
+        JurisdictionConstants.DISTRICTS.find { it.id == reportDistrictId }
     }
-    val urbanLocation = remember(selectedDistrictId) { JurisdictionConstants.getUrbanLocation(selectedDistrictId) }
-    val ruralLocation = remember(selectedDistrictId) { JurisdictionConstants.getRuralLocation(selectedDistrictId) }
-    val districtCategory = remember(selectedDistrictId) {
+    val urbanLocation = remember(reportDistrictId) { JurisdictionConstants.getUrbanLocation(reportDistrictId) }
+    val ruralLocation = remember(reportDistrictId) { JurisdictionConstants.getRuralLocation(reportDistrictId) }
+    val districtCategory = remember(reportDistrictId) {
         when {
-            JurisdictionConstants.isUrban(selectedDistrictId) -> "URBAN"
-            JurisdictionConstants.isRural(selectedDistrictId) -> "RURAL"
+            JurisdictionConstants.isUrban(reportDistrictId) -> "URBAN"
+            JurisdictionConstants.isRural(reportDistrictId) -> "RURAL"
             else -> null
         }
     }
+    val isUsingProfileDistrictFallback = resolvedLocationAddress != null &&
+        resolvedLocationAddress?.matchedDistrict == null &&
+        profileDistrictId.isNotBlank()
 
     fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -222,22 +239,52 @@ fun IssueReportScreen() {
             locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
-    fun openAppSettings() {
-        val intent = Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", context.packageName, null)
-        )
-        context.startActivity(intent)
-    }
-
     fun openLocationSettings() {
         context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+    }
+
+    fun applyResolvedAddress(resolvedAddress: ResolvedLocationAddress) {
+        resolvedLocationAddress = resolvedAddress
+        currentLat = resolvedAddress.lat
+        currentLng = resolvedAddress.lng
+
+        if (addressText.isBlank()) {
+            addressText = resolvedAddress.addressText.orEmpty()
+        }
+        if (locality.isBlank()) {
+            locality = resolvedAddress.locality.orEmpty()
+        }
+
+        locationStatus = when {
+            resolvedAddress.addressText.isNullOrBlank() -> {
+                "Coordinates detected. Enter address details manually."
+            }
+            resolvedAddress.matchedDistrict != null -> {
+                "Current location and address detected"
+            }
+            profileDistrictId.isNotBlank() -> {
+                "Current address detected. Unsupported district; using registered district for routing."
+            }
+            else -> {
+                "Current address detected, but district is outside supported areas."
+            }
+        }
     }
 
     fun fetchCurrentLocation() {
         if (inPreview) {
             currentLat = 31.6340
             currentLng = 74.8723
+            resolvedLocationAddress = ResolvedLocationAddress(
+                lat = 31.6340,
+                lng = 74.8723,
+                addressText = "Amritsar, Punjab",
+                locality = "Amritsar",
+                district = "Amritsar",
+                state = JurisdictionConstants.PUNJAB_STATE_NAME,
+                pinCode = null,
+                matchedDistrict = JurisdictionConstants.findDistrictByName("Amritsar")
+            )
             locationStatus = "Preview location loaded"
             return
         }
@@ -265,14 +312,28 @@ fun IssueReportScreen() {
                 if (location != null) {
                     currentLat = location.latitude
                     currentLng = location.longitude
-                    locationStatus = "Current location detected"
+                    scope.launch {
+                        val resolver = locationAddressResolver
+                        if (resolver == null) {
+                            locationStatus = "Current coordinates detected"
+                        } else {
+                            applyResolvedAddress(resolver.resolve(location.latitude, location.longitude))
+                        }
+                    }
                 } else {
                     fusedLocationClient.lastLocation
                         .addOnSuccessListener { lastLocation ->
                             if (lastLocation != null) {
                                 currentLat = lastLocation.latitude
                                 currentLng = lastLocation.longitude
-                                locationStatus = "Using last known location"
+                                scope.launch {
+                                    val resolver = locationAddressResolver
+                                    if (resolver == null) {
+                                        locationStatus = "Using last known coordinates"
+                                    } else {
+                                        applyResolvedAddress(resolver.resolve(lastLocation.latitude, lastLocation.longitude))
+                                    }
+                                }
                             } else {
                                 locationStatus = "Unable to determine location"
                             }
@@ -348,7 +409,7 @@ fun IssueReportScreen() {
             addressText.trim().isBlank() -> "Please enter the address or location text"
             description.trim().isBlank() -> "Please add a short description"
             selectedImageUris.isEmpty() -> "Please add at least one photo"
-            selectedDistrictId.isBlank() || district == null -> "Your district could not be determined. Please complete your profile first."
+            reportDistrictId.isBlank() || district == null -> "District could not be determined. Please complete your profile or detect a supported current district."
             else -> null
         }
     }
@@ -366,11 +427,31 @@ fun IssueReportScreen() {
     }
 
     val categoryName = CategoryConstants.getCategoryName(selectedCategoryId) ?: "Select category"
-    val districtName = district?.name ?: "Unknown district"
+    val displayDistrictName = resolvedLocationAddress?.matchedDistrict?.name
+        ?: resolvedLocationAddress?.district?.takeIf { it.isNotBlank() }
+        ?: district?.name
+        ?: "Unknown district"
+    val detectedPlaceName = listOfNotNull(
+        resolvedLocationAddress?.locality,
+        displayDistrictName
+    )
+        .filter { it.isNotBlank() }
+        .distinct()
+        .joinToString(", ")
+    val locationDisplayName = detectedPlaceName.ifBlank { displayDistrictName }
+    val displayState = resolvedLocationAddress?.state
+        ?.takeIf { it.isNotBlank() }
+        ?: JurisdictionConstants.PUNJAB_STATE_NAME
+    val displayPinCode = resolvedLocationAddress?.pinCode?.takeIf { it.isNotBlank() }
+    val displayAreaType = when {
+        resolvedLocationAddress != null && resolvedLocationAddress?.matchedDistrict == null -> "UNSUPPORTED"
+        resolvedLocationAddress?.matchedDistrict != null -> resolvedLocationAddress?.matchedDistrict?.category
+        else -> districtCategory
+    } ?: "UNKNOWN"
     val jurisdictionSummary = when {
         urbanLocation != null -> "${urbanLocation.cityName} • ${urbanLocation.wardName}"
         ruralLocation != null -> "${ruralLocation.blockName} • ${ruralLocation.panchayatName}"
-        else -> "No jurisdiction mapping found"
+        else -> "Using registered district fallback"
     }
 
     Scaffold(
@@ -602,6 +683,48 @@ fun IssueReportScreen() {
                 }
                 Spacer(modifier = Modifier.height(20.dp))
 
+                SectionTitle(text = "PRIORITY")
+                Spacer(modifier = Modifier.height(12.dp))
+                ExposedDropdownMenuBox(
+                    expanded = isPriorityExpanded,
+                    onExpandedChange = { isPriorityExpanded = !isPriorityExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedPriority.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                        onValueChange = { },
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(
+                                type = androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                enabled = true
+                            ),
+                        trailingIcon = {
+                            Icon(
+                                if (isPriorityExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null
+                            )
+                        },
+                        label = { Text("Select priority level") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isPriorityExpanded,
+                        onDismissRequest = { isPriorityExpanded = false }
+                    ) {
+                        listOf("low", "medium", "high").forEach { priority ->
+                            DropdownMenuItem(
+                                text = { Text(priority.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
+                                onClick = {
+                                    selectedPriority = priority
+                                    isPriorityExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+
                 SectionTitle(text = "PHOTOS")
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
@@ -669,7 +792,7 @@ fun IssueReportScreen() {
                                 color = Color(0xFF747974)
                             )
                             Text(
-                                text = districtCategory ?: "UNKNOWN",
+                                text = displayAreaType,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF006D47)
@@ -685,7 +808,7 @@ fun IssueReportScreen() {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = districtName,
+                                text = locationDisplayName,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1A1C1A),
@@ -699,6 +822,25 @@ fun IssueReportScreen() {
                             fontSize = 12.sp,
                             color = Color(0xFF5F635F)
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LocationDetailRow(label = "State", value = displayState)
+                        LocationDetailRow(label = "District", value = displayDistrictName)
+                        resolvedLocationAddress?.locality
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { LocationDetailRow(label = "Locality", value = it) }
+                        displayPinCode?.let { LocationDetailRow(label = "Pin code", value = it) }
+                        if (addressText.isNotBlank()) {
+                            LocationDetailRow(label = "Full address", value = addressText)
+                        }
+                        if (isUsingProfileDistrictFallback) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            MessageCard(
+                                backgroundColor = Color(0xFFFFF8E1),
+                                borderColor = Color(0xFFFFECB3),
+                                textColor = Color(0xFF8A5A00),
+                                text = "Current district is outside supported areas; using your registered district for routing."
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         Box(
                             modifier = Modifier
@@ -762,37 +904,25 @@ fun IssueReportScreen() {
                                             )
                                         )
                                     }
-                                }
+                                },
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.MyLocation, contentDescription = null)
                                 Spacer(modifier = Modifier.size(8.dp))
-                                Text("Detect location")
+                                Text("Detect Location")
                             }
 
-                            TextButton(onClick = { openAppSettings() }) {
-                                Text("Allow access")
-                            }
-
-                            TextButton(onClick = { openLocationSettings() }) {
+                            TextButton(
+                                onClick = { openLocationSettings() },
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text("Enable GPS")
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "PRIORITY",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF747974)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Default: medium",
-                    fontSize = 14.sp,
-                    color = Color(0xFF1A1C1A)
-                )
+
                 Spacer(modifier = Modifier.height(28.dp))
 
                 Button(
@@ -831,8 +961,8 @@ fun IssueReportScreen() {
                                     lat = currentLat,
                                     lng = currentLng,
                                     imageUrls = uploadedUrls,
-                                    priority = "medium",
-                                    districtId = selectedDistrictId,
+                                    priority = selectedPriority,
+                                    districtId = reportDistrictId,
                                     cityId = urbanLocation?.cityId,
                                     wardId = urbanLocation?.wardId,
                                     blockId = ruralLocation?.blockId,
@@ -920,6 +1050,37 @@ private fun MessageCard(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             color = textColor,
             fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
+private fun LocationDetailRow(
+    label: String,
+    value: String
+) {
+    if (value.isBlank()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(82.dp),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF747974)
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            fontSize = 12.sp,
+            color = Color(0xFF1A1C1A),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
