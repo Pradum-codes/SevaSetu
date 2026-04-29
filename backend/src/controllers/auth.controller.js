@@ -6,13 +6,14 @@ import { generateOtp } from '../utils/otp.js';
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const createEmailTransporter = () =>
+  nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
 
 const isEmailValid = (email) =>
   typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -80,6 +81,7 @@ export const sendOtp = async (req, res) => {
     });
 
     try {
+      const transporter = createEmailTransporter();
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
