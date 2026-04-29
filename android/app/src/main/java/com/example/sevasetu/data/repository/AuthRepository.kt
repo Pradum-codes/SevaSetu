@@ -8,6 +8,8 @@ import com.example.sevasetu.data.remote.dto.UserDto
 import com.example.sevasetu.data.remote.dto.VerifyOtpRequest
 import com.example.sevasetu.utils.TokenManager
 import org.json.JSONObject
+import java.net.SocketTimeoutException
+import java.io.IOException
 
 class AuthRepository(
     private val authApi: AuthApi,
@@ -22,6 +24,14 @@ class AuthRepository(
                 throw IllegalStateException(message ?: "Send OTP failed (${response.code()})")
             }
             response.body()?.message ?: "OTP sent"
+        }.recoverCatching { throwable ->
+            // Provide better error messages for network issues
+            val friendlyMessage = when (throwable) {
+                is SocketTimeoutException -> "Request timed out. The server took too long to respond. Please check your internet connection and try again."
+                is IOException -> "Network error. Please check your internet connection and try again."
+                else -> throwable.message ?: "Send OTP failed"
+            }
+            throw IllegalStateException(friendlyMessage)
         }
     }
 
@@ -45,6 +55,14 @@ class AuthRepository(
             tokenManager.saveToken(body.token)
             body.user.addressDistrict?.let { tokenManager.saveUserDistrict(it) }
             body.user
+        }.recoverCatching { throwable ->
+            // Provide better error messages for network issues
+            val friendlyMessage = when (throwable) {
+                is SocketTimeoutException -> "Request timed out. Please check your internet connection and try again."
+                is IOException -> "Network error. Please check your internet connection and try again."
+                else -> throwable.message ?: "OTP verification failed"
+            }
+            throw IllegalStateException(friendlyMessage)
         }
     }
 
@@ -59,6 +77,14 @@ class AuthRepository(
             require(body.message.isNotBlank()) { "message missing in register response" }
             require(body.user.id.isNotBlank()) { "user.id missing in register response" }
             body
+        }.recoverCatching { throwable ->
+            // Provide better error messages for network issues
+            val friendlyMessage = when (throwable) {
+                is SocketTimeoutException -> "Request timed out. Please check your internet connection and try again."
+                is IOException -> "Network error. Please check your internet connection and try again."
+                else -> throwable.message ?: "Registration failed"
+            }
+            throw IllegalStateException(friendlyMessage)
         }
     }
 

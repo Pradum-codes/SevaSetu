@@ -10,13 +10,13 @@ import android.Manifest
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.tasks.Task
 import android.location.Location
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -56,6 +56,7 @@ import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
+import com.example.sevasetu.ui.common.IssueDetailModal
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
@@ -71,6 +72,7 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import com.example.sevasetu.ui.screen.Reports.IssueReport
 
 class Dashboard : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,6 +95,7 @@ fun DashboardScreen() {
     var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
     var dashboardUiState by remember { mutableStateOf<DashboardUiState>(DashboardUiState.Loading) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
 
     // Get user's district from TokenManager
     val userDistrictId = remember {
@@ -168,7 +171,12 @@ fun DashboardScreen() {
                                 }
                                 else -> "Nearby Issues"
                             }
-                            mapUiState = MapUiState.Success(mapIssues, displayInfo, searchMode)
+                            mapUiState = MapUiState.Success(
+                                mapIssues,
+                                displayInfo,
+                                searchMode,
+                                response.issues
+                            )
                         }
                         .onFailure { throwable ->
                             mapUiState = MapUiState.Error(
@@ -292,7 +300,9 @@ fun DashboardScreen() {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { },
+                onClick = {
+                    context.startActivity(Intent(context, IssueReport::class.java))
+                },
                 containerColor = Color(0xFF00875A),
                 contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp)
@@ -440,10 +450,20 @@ fun DashboardScreen() {
 
             NearbyIssuesListSection(
                 mapUiState = mapUiState,
-                onRetry = fetchNearbyIssues
+                onRetry = fetchNearbyIssues,
+                onIssueClick = { selectedIssue = it }
             )
         }
     }
+
+    // Show issue detail modal
+    if (selectedIssue != null) {
+        IssueDetailModal(
+            issue = selectedIssue!!,
+            onDismiss = { selectedIssue = null }
+        )
+    }
+
 }
 
 @Composable
@@ -661,7 +681,8 @@ private fun SnapshotStatChip(
 @Composable
 private fun NearbyIssuesListSection(
     mapUiState: MapUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onIssueClick: (IssueDto) -> Unit = {}
 ) {
     when (mapUiState) {
         MapUiState.Loading -> {
@@ -715,6 +736,8 @@ private fun NearbyIssuesListSection(
                     else -> "Nearby"
                 }
 
+                val fullIssue = mapUiState.fullIssues.firstOrNull { it.id == issue.id }
+
                 IssueCard(
                     title = issue.title,
                     time = modeLabel,
@@ -723,7 +746,8 @@ private fun NearbyIssuesListSection(
                     imageUrl = issue.imageUrl,
                     status = status,
                     statusColor = statusContainerColor,
-                    statusTextColor = statusTextColor
+                    statusTextColor = statusTextColor,
+                    onClick = { fullIssue?.let { onIssueClick(it) } }
                 )
 
                 if (index != mapUiState.issues.lastIndex) {
@@ -1004,7 +1028,8 @@ private sealed interface MapUiState {
     data class Success(
         val issues: List<MapIssue>,
         val displayInfo: String = "Nearby Issues",
-        val searchMode: String = "unknown"
+        val searchMode: String = "unknown",
+        val fullIssues: List<IssueDto> = emptyList()
     ) : MapUiState
     data class Error(val message: String) : MapUiState
 }
@@ -1054,10 +1079,13 @@ fun IssueCard(
     imageUrl: String?,
     status: String,
     statusColor: Color,
-    statusTextColor: Color
+    statusTextColor: Color,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

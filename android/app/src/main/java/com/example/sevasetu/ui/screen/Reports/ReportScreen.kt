@@ -48,6 +48,7 @@ import com.example.sevasetu.Dashboard
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
+import com.example.sevasetu.ui.common.IssueDetailModal
 import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
@@ -78,6 +79,7 @@ fun MyReportsScreen() {
 
     var selectedFilter by rememberSaveable { mutableStateOf(ReportStatusFilter.ALL) }
     var uiState by remember { mutableStateOf(ReportsUiState(isLoading = true)) }
+    var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
 
     val refreshReports: () -> Unit = {
         if (isPreview) {
@@ -85,14 +87,17 @@ fun MyReportsScreen() {
         } else {
             scope.launch {
                 uiState = uiState.copy(isLoading = true, errorMessage = null)
-                issueRepository.getMyReportedIssues(
+                val result = issueRepository.getMyReportedIssues(
                     page = 1,
                     limit = 50,
                     status = selectedFilter.apiValue
-                ).onSuccess { response ->
+                )
+
+                result.onSuccess { response ->
                     uiState = ReportsUiState(
                         isLoading = false,
-                        reports = response.issues.map { it.toReportListItem() }
+                        reports = response.issues.map { it.toReportListItem() },
+                        fullIssues = response.issues
                     )
                 }.onFailure { throwable ->
                     uiState = ReportsUiState(
@@ -320,7 +325,11 @@ fun MyReportsScreen() {
 
                 else -> {
                     items(uiState.reports, key = { it.id }) { report ->
-                        ReportIssueCard(report = report)
+                        val fullIssue = uiState.fullIssues.find { it.id == report.id }
+                        ReportIssueCard(
+                            report = report,
+                            onClick = { fullIssue?.let { selectedIssue = it } }
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
@@ -386,6 +395,14 @@ fun MyReportsScreen() {
             }
         }
     }
+
+    // Show issue detail modal
+    if (selectedIssue != null) {
+        IssueDetailModal(
+            issue = selectedIssue!!,
+            onDismiss = { selectedIssue = null }
+        )
+    }
 }
 
 private enum class ReportStatusFilter(val label: String, val apiValue: String?) {
@@ -399,6 +416,7 @@ private enum class ReportStatusFilter(val label: String, val apiValue: String?) 
 private data class ReportsUiState(
     val isLoading: Boolean = false,
     val reports: List<ReportListItem> = emptyList(),
+    val fullIssues: List<IssueDto> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -412,11 +430,16 @@ private data class ReportListItem(
 )
 
 @Composable
-private fun ReportIssueCard(report: ReportListItem) {
+private fun ReportIssueCard(
+    report: ReportListItem,
+    onClick: () -> Unit = {}
+) {
     val (bgColor, txtColor, borderColor) = reportStatusColors(report.statusRaw)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

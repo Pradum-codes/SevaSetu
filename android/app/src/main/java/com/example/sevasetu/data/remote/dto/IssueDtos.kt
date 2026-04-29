@@ -57,8 +57,12 @@ data class CreateIssueResponse(
 data class IssueDto(
     @SerializedName("id") val id: String,
     @SerializedName("title") val title: String,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("categoryId") val categoryId: Int? = null,
+    @SerializedName("category") val category: IssueCategoryDto? = null,
     @SerializedName("status") val status: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null,
     @SerializedName("addressText") val addressText: String?,
     @SerializedName("lat") val lat: Double?,
     @SerializedName("lng") val lng: Double?,
@@ -66,6 +70,11 @@ data class IssueDto(
     @SerializedName("images") val images: List<IssueImageDto> = emptyList(),
     @SerializedName("imageUrls") val imageUrls: List<String>? = null,
     @SerializedName("imageUrl") val imageUrl: String?
+)
+
+data class IssueCategoryDto(
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String
 )
 
 data class IssueImageDto(
@@ -119,4 +128,3 @@ data class NearbyInsights(
     @SerializedName("inProgress") val inProgress: Int,
     @SerializedName("closed") val closed: Int
 )
-
