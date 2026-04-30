@@ -9,6 +9,7 @@
     "dev": "nodemon server.js",
     "build": "prisma generate",
     "seed": "node prisma/seed.js",
+    "seed:admins": "node scripts/seed-admin-hierarchy.js",
     "create-admin": "node scripts/create-admin.js",
     "start": "node server.js"
   },

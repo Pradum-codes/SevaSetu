@@ -39,9 +39,42 @@ After running seed, use the printed output to map category names to IDs for API 
 You can add admin CRUD routes later for managing master data after role-based middleware is in place.
 
 
-## Seeding for admin
-```
-npm install
-npm run build
+## Seeding for Admin Users
+
+### Quick Admin (Single Account)
+
+Create a single admin account:
+
+```bash
 npm run create-admin -- --email admin@example.com --password "secret" --name "Admin Name"
 ```
+
+### Admin Hierarchy (Multiple Accounts with Jurisdiction/Department Structure)
+
+For production deployments, seed a complete admin hierarchy with role-based jurisdiction and department assignments:
+
+```bash
+npm run seed:admins
+```
+
+This script creates:
+
+1. **State Head** - Full state-level jurisdiction access
+   - Email: `state.admin@punjab.gov.in`
+   - Password: `StateAdmin@123`
+   - Scope: All Punjab districts and descendants
+
+2. **District Head** - District-level jurisdiction access
+   - Email: `kapurthala.district@gov.in`
+   - Password: `DistrictAdmin@123`
+   - Scope: Kapurthala District and descendants
+
+3. **Department Heads** (4) - Department-specific access within district
+   - Road: `road.head@kapurthala.gov.in` / `DeptHead@123`
+   - Water: `water.head@kapurthala.gov.in` / `DeptHead@123`
+   - Electricity: `electricity.head@kapurthala.gov.in` / `DeptHead@123`
+   - Sanitation: `sanitation.head@kapurthala.gov.in` / `DeptHead@123`
+
+**Location:** `/backend/scripts/seed-admin-hierarchy.js`
+
+**Customization:** Modify the script to add more jurisdictions (districts, blocks) or department heads as needed. Jurisdiction IDs are imported from the base seeding (`seed.js`).
