@@ -213,7 +213,7 @@ model IssueUpdate {
   oldStatus        String?
   newStatus        String?
   type             String?
-  message          String
+  message          String   @default("")
   remarks          String?
   proofImageUrl    String?
   visibleToCitizen Boolean  @default(true)

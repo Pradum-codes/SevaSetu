@@ -1,17 +1,13 @@
-import express from 'express';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import * as appModule from './app.js';
 
 dotenv.config();
-const app = express();
-
-const app = require('./app');
+const app = appModule.default;
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
 });
