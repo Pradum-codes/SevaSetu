@@ -1,5 +1,4 @@
 import React from 'react';
-import IssueTimeline from './IssueTimeline';
 
 export default function IssueDetails({
   issue,
@@ -7,8 +6,6 @@ export default function IssueDetails({
   statusLabels,
   onOpenModal,
   adminRole,
-  timeline = [],
-  timelineLoading = false,
 }) {
   // Determine which action buttons to show based on role
   const renderActionButtons = () => {
@@ -97,7 +94,7 @@ export default function IssueDetails({
   const getRoleInfo = () => {
     switch (adminRole) {
       case 'STATE':
-        return 'State Admin - Forward to districts only';
+        return 'State Admin - Read and monitor district routing';
       case 'DISTRICT':
         return 'District Admin - Assign to departments and close after review';
       case 'AUTHORITY':
@@ -183,17 +180,6 @@ export default function IssueDetails({
         </div>
       )}
 
-      {timelineLoading ? (
-        <div className="detail-section">
-          <h3>Full Timeline</h3>
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <div className="spinner"></div>
-            <p>Loading timeline...</p>
-          </div>
-        </div>
-      ) : (
-        <IssueTimeline issueId={issue.id} updates={timeline} />
-      )}
     </aside>
   );
 }

@@ -17,63 +17,86 @@ export default function IssueTimeline({ issueId, updates = [] }) {
     return typeof dept === 'string' ? dept : dept.name || '';
   };
 
+  const formatEventType = (type) => type?.replaceAll('_', ' ') || 'Update';
+
+  const formatDate = (date) => {
+    if (!date) return '-';
+    const parsed = new Date(date);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleString();
+  };
+
+  const formatDepartments = (update) => {
+    const fromDepartment = getDepartmentName(update.fromDepartment);
+    const toDepartment = getDepartmentName(update.toDepartment);
+
+    if (fromDepartment && toDepartment) return `${fromDepartment} to ${toDepartment}`;
+    return fromDepartment || toDepartment || '-';
+  };
+
+  const formatActor = (actor) => {
+    if (!actor) return '-';
+    return actor.name || actor.email || '-';
+  };
+
   return (
     <section className="timeline-section">
       <h3>Full Timeline</h3>
-      <div className="timeline">
-        {updates.map((update, idx) => (
-          <article className="timeline-event" key={update.id || idx}>
-            <div className="timeline-marker">
-              <div className="timeline-dot"></div>
-            </div>
-            <div className="timeline-content">
-              <div className="timeline-header">
-                <strong className="event-type">
-                  {update.type?.replaceAll('_', ' ') || 'Update'}
-                </strong>
-                <time className="event-time">
-                  {new Date(update.createdAt).toLocaleString()}
-                </time>
-              </div>
-              {update.remarks && (
-                <p className="event-remarks">{update.remarks}</p>
-              )}
-              {update.oldStatus && update.newStatus && (
-                <p className="event-status">
-                  Status: <strong>{update.oldStatus}</strong> → <strong>{update.newStatus}</strong>
-                </p>
-              )}
-              {(update.fromDepartment || update.toDepartment) && (
-                <p className="event-departments">
-                  {getDepartmentName(update.fromDepartment) && (
-                    <>From <strong>{getDepartmentName(update.fromDepartment)}</strong></>
+      <div className="timeline-table-wrap">
+        <table className="timeline-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+              <th>Departments</th>
+              <th>Actor</th>
+              <th>Remarks</th>
+              <th>Proof</th>
+            </tr>
+          </thead>
+          <tbody>
+            {updates.map((update, idx) => (
+              <tr key={update.id || idx}>
+                <td>
+                  <strong className="event-type">{formatEventType(update.type)}</strong>
+                </td>
+                <td>
+                  <time dateTime={update.createdAt || undefined}>
+                    {formatDate(update.createdAt)}
+                  </time>
+                </td>
+                <td>
+                  {update.oldStatus && update.newStatus ? (
+                    <span className="status-transition">
+                      <strong>{update.oldStatus}</strong>
+                      <span aria-hidden="true"> → </span>
+                      <strong>{update.newStatus}</strong>
+                    </span>
+                  ) : (
+                    '-'
                   )}
-                  {getDepartmentName(update.fromDepartment) && getDepartmentName(update.toDepartment) && <> to </>}
-                  {getDepartmentName(update.toDepartment) && (
-                    <><strong>{getDepartmentName(update.toDepartment)}</strong></>
+                </td>
+                <td>{formatDepartments(update)}</td>
+                <td>{formatActor(update.actor)}</td>
+                <td className="timeline-remarks">{update.remarks || '-'}</td>
+                <td>
+                  {update.proofImageUrl ? (
+                    <a
+                      href={update.proofImageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="proof-link"
+                    >
+                      View proof
+                    </a>
+                  ) : (
+                    '-'
                   )}
-                </p>
-              )}
-              {update.actor && (
-                <p className="event-actor">
-                  By <strong>{update.actor.name || update.actor.email}</strong>
-                </p>
-              )}
-              {update.proofImageUrl && (
-                <div className="event-proof">
-                  <a
-                    href={update.proofImageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="proof-link"
-                  >
-                    📎 View Proof Image
-                  </a>
-                </div>
-              )}
-            </div>
-          </article>
-        ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );

@@ -10,9 +10,29 @@ const statusLabels = {
   open: 'Open',
   assigned: 'Assigned',
   in_progress: 'In Progress',
-  forwarded: 'Forwarded',
   resolved: 'Resolved',
   closed: 'Closed',
+};
+
+const roleMeta = {
+  STATE: {
+    label: 'State Admin',
+    scope: 'Statewide',
+    management: 'Districts',
+    queue: 'All District Issues',
+  },
+  DISTRICT: {
+    label: 'District Admin',
+    scope: 'District',
+    management: 'Departments',
+    queue: 'District Queue',
+  },
+  AUTHORITY: {
+    label: 'Department Admin',
+    scope: 'Department',
+    management: '',
+    queue: 'Assigned Work',
+  },
 };
 
 // Determine admin role based on jurisdiction type
@@ -32,6 +52,8 @@ export default function Dashboard({ admin, onLogout }) {
   const [filters, setFilters] = useState({
     status: '',
     targetId: '', // district for state, department for district, etc.
+    dateFrom: '',
+    dateTo: '',
   });
   const [availableTargets, setAvailableTargets] = useState([]);
   const [timeline, setTimeline] = useState([]);
@@ -42,6 +64,18 @@ export default function Dashboard({ admin, onLogout }) {
   const [activeView, setActiveView] = useState('issues');
 
   const adminRole = getAdminRole(admin);
+  const currentRole = roleMeta[adminRole] || {
+    label: 'Admin',
+    scope: 'Administration',
+    management: '',
+    queue: 'Issues',
+  };
+  const issueFilters = {
+    status: filters.status === '__pending' ? '' : filters.status,
+    statusGroup: filters.status === '__pending' ? 'pending' : '',
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+  };
 
   // Fetch issues based on admin role
   useEffect(() => {
@@ -53,24 +87,18 @@ export default function Dashboard({ admin, onLogout }) {
 
         if (adminRole === 'STATE') {
           response = await adminApi.stateAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            ...issueFilters,
             districtId: filters.targetId,
           });
           setAvailableTargets(response.availableDistricts || []);
         } else if (adminRole === 'DISTRICT') {
           response = await adminApi.districtAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            ...issueFilters,
             departmentId: filters.targetId,
           });
           setAvailableTargets(response.availableDepartments || []);
         } else if (adminRole === 'AUTHORITY' || !admin?.authorityProfile?.jurisdictionId) {
-          // Department admin - no jurisdiction but has department assignment
-          response = await adminApi.departmentAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
-          });
+          response = await adminApi.departmentAdminListIssues(issueFilters);
         } else {
           // Fallback
           response = await adminApi.getIssues(filters);
@@ -120,8 +148,9 @@ export default function Dashboard({ admin, onLogout }) {
       acc[issue.status] = (acc[issue.status] || 0) + 1;
       return acc;
     },
-    { open: 0, assigned: 0, in_progress: 0, forwarded: 0, resolved: 0, closed: 0 }
+    { open: 0, assigned: 0, in_progress: 0, resolved: 0, closed: 0 }
   );
+  const pendingCount = counts.open + counts.assigned + counts.in_progress;
 
   const handleLogout = () => {
     clearToken();
@@ -185,23 +214,18 @@ export default function Dashboard({ admin, onLogout }) {
       setTimeout(async () => {
         if (adminRole === 'STATE') {
           const response = await adminApi.stateAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            ...issueFilters,
             districtId: filters.targetId,
           });
           setIssues(response.issues || []);
         } else if (adminRole === 'DISTRICT') {
           const response = await adminApi.districtAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            ...issueFilters,
             departmentId: filters.targetId,
           });
           setIssues(response.issues || []);
         } else {
-          const response = await adminApi.departmentAdminListIssues({
-            status: filters.status === '__pending' ? '' : filters.status,
-            statusGroup: filters.status === '__pending' ? 'pending' : '',
-          });
+          const response = await adminApi.departmentAdminListIssues(issueFilters);
           setIssues(response.issues || []);
         }
         handleCloseModal();
@@ -216,11 +240,11 @@ export default function Dashboard({ admin, onLogout }) {
   const getRoleLabel = () => {
     switch (adminRole) {
       case 'STATE':
-        return 'State Admin';
+        return currentRole.label;
       case 'DISTRICT':
-        return 'District Admin';
+        return currentRole.label;
       case 'AUTHORITY':
-        return 'Department Admin';
+        return currentRole.label;
       default:
         return 'Admin';
     }
@@ -229,13 +253,13 @@ export default function Dashboard({ admin, onLogout }) {
   const getStatusOptions = () => {
     switch (adminRole) {
       case 'STATE':
-        return ['open', 'forwarded', 'assigned', 'in_progress', 'resolved', 'closed'];
+        return ['open', 'assigned', 'in_progress', 'resolved', 'closed'];
       case 'DISTRICT':
         return ['open', 'assigned', 'in_progress', 'resolved', 'closed'];
       case 'AUTHORITY':
         return ['assigned', 'in_progress', 'resolved'];
       default:
-        return ['open', 'assigned', 'in_progress', 'forwarded', 'resolved', 'closed'];
+        return ['open', 'assigned', 'in_progress', 'resolved', 'closed'];
     }
   };
 
@@ -254,7 +278,7 @@ export default function Dashboard({ admin, onLogout }) {
             className={`nav-item ${activeView === 'issues' ? 'active' : ''}`}
             onClick={() => setActiveView('issues')}
           >
-            Issues
+            Review
           </button>
           {(adminRole === 'STATE' || adminRole === 'DISTRICT') && (
             <>
@@ -262,7 +286,7 @@ export default function Dashboard({ admin, onLogout }) {
                 className={`nav-item ${activeView === 'management' ? 'active' : ''}`}
                 onClick={() => setActiveView('management')}
               >
-                {adminRole === 'STATE' ? 'Districts' : 'Departments'}
+                Manage
               </button>
             </>
           )}
@@ -282,10 +306,10 @@ export default function Dashboard({ admin, onLogout }) {
         <header className="topbar">
           <div>
             <p className="eyebrow">
-              {admin?.authorityProfile?.jurisdiction?.name || 'Administration'}
+              {currentRole.scope} / {admin?.authorityProfile?.jurisdiction?.name || 'Administration'}
             </p>
             <h1>
-              {activeView === 'issues' ? 'Issue Management' : 'Administration'} - {getRoleLabel()}
+              {activeView === 'issues' ? currentRole.queue : currentRole.management}
             </h1>
           </div>
           {activeView === 'issues' && (
@@ -319,6 +343,20 @@ export default function Dashboard({ admin, onLogout }) {
                   ))}
                 </select>
               )}
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                className="filter-select"
+                aria-label="Start date"
+              />
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                className="filter-select"
+                aria-label="End date"
+              />
             </div>
           )}
         </header>
@@ -331,14 +369,35 @@ export default function Dashboard({ admin, onLogout }) {
           />
         ) : (
           <>
-            <section className="stats" aria-label="Issue status counters">
-              {Object.entries(counts).map(([status, count]) => (
-                <div className="stat" key={status}>
-                  <span className="stat-label">{statusLabels[status]}</span>
-                  <strong className="stat-count">{count}</strong>
+            <div className="summary-row">
+            <section className="work-strip" aria-label="Workflow summary">
+                <div>
+                <span>Pending</span>
+                <strong>{pendingCount}</strong>
                 </div>
-              ))}
+                <div>
+                <span>Resolved</span>
+                <strong>{counts.resolved}</strong>
+                </div>
+                <div>
+                <span>Closed</span>
+                <strong>{counts.closed}</strong>
+                </div>
+                <div>
+                <span>Total</span>
+                <strong>{issues.length}</strong>
+                </div>
             </section>
+
+            <section className="stats" aria-label="Issue status counters">
+                {Object.entries(counts).map(([status, count]) => (
+                <div className="stat" key={status}>
+                    <span className="stat-label">{statusLabels[status]}</span>
+                    <strong className="stat-count">{count}</strong>
+                </div>
+                ))}
+            </section>
+            </div>
 
             {error && (
               <div className="alert alert-error">
@@ -357,12 +416,30 @@ export default function Dashboard({ admin, onLogout }) {
               </div>
             ) : (
               <section className="content-grid">
-                <IssueTable
-                  issues={issues}
-                  selectedId={selectedId}
-                  onSelectIssue={setSelectedId}
-                  statusLabels={statusLabels}
-                />
+                <div className="left-stack">
+                  <IssueTable
+                    issues={issues}
+                    selectedId={selectedId}
+                    onSelectIssue={setSelectedId}
+                    statusLabels={statusLabels}
+                  />
+
+                  <section className="timeline-panel">
+                    <div className="section-heading">
+                      <h2>Timeline For Selected Ticket</h2>
+                    </div>
+                    <div className="timeline-panel-body">
+                      {timelineLoading ? (
+                        <div className="loading-state timeline-loading">
+                          <div className="spinner"></div>
+                          <p>Loading timeline...</p>
+                        </div>
+                      ) : (
+                        <IssueTimeline issueId={selectedId} updates={timeline} />
+                      )}
+                    </div>
+                  </section>
+                </div>
 
                 {selectedIssue && (
                   <IssueDetails
@@ -371,8 +448,6 @@ export default function Dashboard({ admin, onLogout }) {
                     statusLabels={statusLabels}
                     onOpenModal={handleOpenModal}
                     adminRole={adminRole}
-                    timeline={timeline}
-                    timelineLoading={timelineLoading}
                   />
                 )}
               </section>
