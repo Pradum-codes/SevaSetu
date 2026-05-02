@@ -43,6 +43,15 @@ const apiCall = async (endpoint, options = {}) => {
   return response.json();
 };
 
+const appendCommonIssueFilters = (params, filters = {}) => {
+  if (filters.status) params.append('status', filters.status);
+  if (filters.statusGroup) params.append('statusGroup', filters.statusGroup);
+  if (filters.departmentId) params.append('departmentId', filters.departmentId);
+  if (filters.categoryId) params.append('categoryId', filters.categoryId);
+  if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+  if (filters.dateTo) params.append('dateTo', filters.dateTo);
+};
+
 // Auth API calls
 export const adminApi = {
   // Login with email and password
@@ -114,7 +123,8 @@ export const adminApi = {
   // STATE_ADMIN: List issues and view available districts
   stateAdminListIssues: (filters = {}) => {
     const params = new URLSearchParams();
-    if (filters.status) params.append('status', filters.status);
+    appendCommonIssueFilters(params, filters);
+    if (filters.districtId) params.append('districtId', filters.districtId);
 
     const query = params.toString();
     const url = query ? `/admin/state/issues?${query}` : '/admin/state/issues';
@@ -131,8 +141,7 @@ export const adminApi = {
   // DISTRICT_ADMIN: List issues and view available departments
   districtAdminListIssues: (filters = {}) => {
     const params = new URLSearchParams();
-    if (filters.status) params.append('status', filters.status);
-    if (filters.departmentId) params.append('departmentId', filters.departmentId);
+    appendCommonIssueFilters(params, filters);
 
     const query = params.toString();
     const url = query ? `/admin/district/issues?${query}` : '/admin/district/issues';
@@ -156,7 +165,7 @@ export const adminApi = {
   // DEPARTMENT_ADMIN: List issues assigned to their department
   departmentAdminListIssues: (filters = {}) => {
     const params = new URLSearchParams();
-    if (filters.status) params.append('status', filters.status);
+    appendCommonIssueFilters(params, filters);
 
     const query = params.toString();
     const url = query ? `/admin/department/issues?${query}` : '/admin/department/issues';
@@ -175,5 +184,46 @@ export const adminApi = {
     apiCall(`/admin/department/issues/${issueId}/update-status`, {
       method: 'PATCH',
       body: JSON.stringify({ newStatus, remarks }),
+    }),
+
+  stateAdminListDistricts: () => apiCall('/admin/state/districts', { method: 'GET' }),
+
+  stateAdminCreateDistrict: (payload) =>
+    apiCall('/admin/state/districts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  stateAdminListDistrictHeads: () =>
+    apiCall('/admin/state/district-heads', { method: 'GET' }),
+
+  stateAdminCreateDistrictHead: (payload) =>
+    apiCall('/admin/state/district-heads', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  districtAdminListDepartments: () =>
+    apiCall('/admin/district/departments', { method: 'GET' }),
+
+  districtAdminCreateDepartment: (payload) =>
+    apiCall('/admin/district/departments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  districtAdminListDepartmentHeads: () =>
+    apiCall('/admin/district/department-heads', { method: 'GET' }),
+
+  districtAdminCreateDepartmentHead: (payload) =>
+    apiCall('/admin/district/department-heads', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  departmentAdminUploadProof: (proofImageUrl) =>
+    apiCall('/admin/department/proofs/upload', {
+      method: 'POST',
+      body: JSON.stringify({ proofImageUrl }),
     }),
 };

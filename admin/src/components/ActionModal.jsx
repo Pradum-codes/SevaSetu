@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { adminApi } from '../api';
 
 export default function ActionModal({
   type,
@@ -18,6 +19,7 @@ export default function ActionModal({
     finalRemarks: '',
     proofImageUrl: '',
   });
+  const [proofUploadLoading, setProofUploadLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -76,6 +78,20 @@ export default function ActionModal({
           remarks: formData.remarks,
         });
         break;
+    }
+  };
+
+  const handleProofBlur = async () => {
+    if (!formData.proofImageUrl || adminRole !== 'AUTHORITY') return;
+
+    setProofUploadLoading(true);
+    try {
+      const response = await adminApi.departmentAdminUploadProof(formData.proofImageUrl);
+      setFormData((prev) => ({ ...prev, proofImageUrl: response.proofImageUrl }));
+    } catch {
+      // Form submission will show the backend validation error if the URL is unusable.
+    } finally {
+      setProofUploadLoading(false);
     }
   };
 
@@ -215,13 +231,15 @@ export default function ActionModal({
                 </label>
                 <input
                   id="proofImageUrl"
-                  type="url"
+                  type="text"
                   name="proofImageUrl"
                   value={formData.proofImageUrl}
                   onChange={handleChange}
-                  placeholder="https://example.com/proof.jpg"
+                  onBlur={handleProofBlur}
+                  placeholder="https://example.com/proof.jpg or data:image/..."
                   required
                 />
+                {proofUploadLoading && <small>Checking proof image...</small>}
               </div>
             </>
           )}

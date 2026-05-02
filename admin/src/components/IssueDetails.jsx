@@ -15,12 +15,7 @@ export default function IssueDetails({
     switch (adminRole) {
       case 'STATE':
         return (
-          <button
-            className="action-btn primary"
-            onClick={() => onOpenModal('forward-to-district', issue.id)}
-          >
-            Forward to District
-          </button>
+          <span className="action-note">Automatically routed to district</span>
         );
 
       case 'DISTRICT':

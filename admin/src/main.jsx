@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './styles.css';
 import LoginPage from './LoginPage';
 import Dashboard from './Dashboard';
-import { isAuthenticated } from './api';
+import { adminApi, clearToken, isAuthenticated } from './api';
 
 function App() {
   const [admin, setAdmin] = useState(null);
@@ -11,21 +11,25 @@ function App() {
 
   // Check if user is already logged in on app load
   useEffect(() => {
-    if (isAuthenticated()) {
-      // In a real app, we would fetch the admin profile from the API
-      // For now, we'll just set a placeholder
-      setAdmin({
-        id: 'admin-placeholder',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        authorityProfile: {
-          jurisdiction: {
-            name: 'Admin Scope'
-          }
-        }
-      });
-    }
-    setInitialized(true);
+    const initializeAdmin = async () => {
+      if (!isAuthenticated()) {
+        setInitialized(true);
+        return;
+      }
+
+      try {
+        const response = await adminApi.getMe();
+        setAdmin(response.admin);
+      } catch (error) {
+        console.error('Failed to restore admin session:', error);
+        clearToken();
+        setAdmin(null);
+      } finally {
+        setInitialized(true);
+      }
+    };
+
+    initializeAdmin();
   }, []);
 
   const handleLoginSuccess = (adminData) => {

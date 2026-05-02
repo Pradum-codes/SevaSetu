@@ -4,6 +4,7 @@ import IssueTable from './components/IssueTable';
 import IssueDetails from './components/IssueDetails';
 import IssueTimeline from './components/IssueTimeline';
 import ActionModal from './components/ActionModal';
+import ManagementPanel from './components/ManagementPanel';
 
 const statusLabels = {
   open: 'Open',
@@ -16,6 +17,9 @@ const statusLabels = {
 
 // Determine admin role based on jurisdiction type
 const getAdminRole = (admin) => {
+  if (admin?.authorityProfile?.designation === 'Department Head') {
+    return 'AUTHORITY';
+  }
   if (!admin?.authorityProfile?.jurisdiction) return null;
   return admin.authorityProfile.jurisdiction.type;
 };
@@ -35,6 +39,7 @@ export default function Dashboard({ admin, onLogout }) {
   const [modal, setModal] = useState({ type: null, issueId: null });
   const [actingLoading, setActingLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
+  const [activeView, setActiveView] = useState('issues');
 
   const adminRole = getAdminRole(admin);
 
@@ -47,14 +52,25 @@ export default function Dashboard({ admin, onLogout }) {
         let response;
 
         if (adminRole === 'STATE') {
-          response = await adminApi.stateAdminListIssues({ status: filters.status });
+          response = await adminApi.stateAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            districtId: filters.targetId,
+          });
           setAvailableTargets(response.availableDistricts || []);
         } else if (adminRole === 'DISTRICT') {
-          response = await adminApi.districtAdminListIssues(filters);
+          response = await adminApi.districtAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            departmentId: filters.targetId,
+          });
           setAvailableTargets(response.availableDepartments || []);
         } else if (adminRole === 'AUTHORITY' || !admin?.authorityProfile?.jurisdictionId) {
           // Department admin - no jurisdiction but has department assignment
-          response = await adminApi.departmentAdminListIssues({ status: filters.status });
+          response = await adminApi.departmentAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+          });
         } else {
           // Fallback
           response = await adminApi.getIssues(filters);
@@ -168,13 +184,24 @@ export default function Dashboard({ admin, onLogout }) {
       // Refresh issues after action
       setTimeout(async () => {
         if (adminRole === 'STATE') {
-          const response = await adminApi.stateAdminListIssues({ status: filters.status });
+          const response = await adminApi.stateAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            districtId: filters.targetId,
+          });
           setIssues(response.issues || []);
         } else if (adminRole === 'DISTRICT') {
-          const response = await adminApi.districtAdminListIssues(filters);
+          const response = await adminApi.districtAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+            departmentId: filters.targetId,
+          });
           setIssues(response.issues || []);
         } else {
-          const response = await adminApi.departmentAdminListIssues({ status: filters.status });
+          const response = await adminApi.departmentAdminListIssues({
+            status: filters.status === '__pending' ? '' : filters.status,
+            statusGroup: filters.status === '__pending' ? 'pending' : '',
+          });
           setIssues(response.issues || []);
         }
         handleCloseModal();
@@ -223,11 +250,20 @@ export default function Dashboard({ admin, onLogout }) {
           </div>
         </div>
         <nav>
-          <button className="nav-item active">Issues</button>
-          {adminRole === 'DISTRICT' && (
+          <button
+            className={`nav-item ${activeView === 'issues' ? 'active' : ''}`}
+            onClick={() => setActiveView('issues')}
+          >
+            Issues
+          </button>
+          {(adminRole === 'STATE' || adminRole === 'DISTRICT') && (
             <>
-              <button className="nav-item">Departments</button>
-              <button className="nav-item">Staff</button>
+              <button
+                className={`nav-item ${activeView === 'management' ? 'active' : ''}`}
+                onClick={() => setActiveView('management')}
+              >
+                {adminRole === 'STATE' ? 'Districts' : 'Departments'}
+              </button>
             </>
           )}
         </nav>
@@ -248,85 +284,100 @@ export default function Dashboard({ admin, onLogout }) {
             <p className="eyebrow">
               {admin?.authorityProfile?.jurisdiction?.name || 'Administration'}
             </p>
-            <h1>Issue Management - {getRoleLabel()}</h1>
+            <h1>
+              {activeView === 'issues' ? 'Issue Management' : 'Administration'} - {getRoleLabel()}
+            </h1>
           </div>
-          <div className="topbar-actions">
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All statuses</option>
-              {getStatusOptions().map((status) => (
-                <option key={status} value={status}>
-                  {statusLabels[status]}
-                </option>
-              ))}
-            </select>
-            {availableTargets.length > 0 && (
+          {activeView === 'issues' && (
+            <div className="topbar-actions">
               <select
-                value={filters.targetId}
-                onChange={(e) => handleFilterChange('targetId', e.target.value)}
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="filter-select"
               >
-                <option value="">
-                  {adminRole === 'STATE' ? 'All districts' : 'All departments'}
-                </option>
-                {availableTargets.map((target) => (
-                  <option key={target.id} value={target.id}>
-                    {target.name}
+                <option value="">All statuses</option>
+                <option value="__pending">Pending</option>
+                {getStatusOptions().map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabels[status]}
                   </option>
                 ))}
               </select>
-            )}
-          </div>
+              {availableTargets.length > 0 && (
+                <select
+                  value={filters.targetId}
+                  onChange={(e) => handleFilterChange('targetId', e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">
+                    {adminRole === 'STATE' ? 'All districts' : 'All departments'}
+                  </option>
+                  {availableTargets.map((target) => (
+                    <option key={target.id} value={target.id}>
+                      {target.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
         </header>
 
-        <section className="stats" aria-label="Issue status counters">
-          {Object.entries(counts).map(([status, count]) => (
-            <div className="stat" key={status}>
-              <span className="stat-label">{statusLabels[status]}</span>
-              <strong className="stat-count">{count}</strong>
-            </div>
-          ))}
-        </section>
-
-        {error && (
-          <div className="alert alert-error">
-            <strong>Error:</strong> {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading issues...</p>
-          </div>
-        ) : issues.length === 0 ? (
-          <div className="empty-state">
-            <p>No issues found</p>
-          </div>
+        {activeView === 'management' ? (
+          <ManagementPanel
+            adminRole={adminRole}
+            districts={adminRole === 'STATE' ? availableTargets : []}
+            departments={adminRole === 'DISTRICT' ? availableTargets : []}
+          />
         ) : (
-          <section className="content-grid">
-            <IssueTable
-              issues={issues}
-              selectedId={selectedId}
-              onSelectIssue={setSelectedId}
-              statusLabels={statusLabels}
-            />
+          <>
+            <section className="stats" aria-label="Issue status counters">
+              {Object.entries(counts).map(([status, count]) => (
+                <div className="stat" key={status}>
+                  <span className="stat-label">{statusLabels[status]}</span>
+                  <strong className="stat-count">{count}</strong>
+                </div>
+              ))}
+            </section>
 
-            {selectedIssue && (
-              <IssueDetails
-                issue={selectedIssue}
-                departments={availableTargets}
-                statusLabels={statusLabels}
-                onOpenModal={handleOpenModal}
-                adminRole={adminRole}
-                timeline={timeline}
-                timelineLoading={timelineLoading}
-              />
+            {error && (
+              <div className="alert alert-error">
+                <strong>Error:</strong> {error}
+              </div>
             )}
-          </section>
+
+            {loading ? (
+              <div className="loading-state">
+                <div className="spinner"></div>
+                <p>Loading issues...</p>
+              </div>
+            ) : issues.length === 0 ? (
+              <div className="empty-state">
+                <p>No issues found</p>
+              </div>
+            ) : (
+              <section className="content-grid">
+                <IssueTable
+                  issues={issues}
+                  selectedId={selectedId}
+                  onSelectIssue={setSelectedId}
+                  statusLabels={statusLabels}
+                />
+
+                {selectedIssue && (
+                  <IssueDetails
+                    issue={selectedIssue}
+                    departments={availableTargets}
+                    statusLabels={statusLabels}
+                    onOpenModal={handleOpenModal}
+                    adminRole={adminRole}
+                    timeline={timeline}
+                    timelineLoading={timelineLoading}
+                  />
+                )}
+              </section>
+            )}
+          </>
         )}
       </section>
 
