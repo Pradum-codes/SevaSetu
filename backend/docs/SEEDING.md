@@ -64,17 +64,34 @@ This script creates:
    - Password: `StateAdmin@123`
    - Scope: All Punjab districts and descendants
 
-2. **District Head** - District-level jurisdiction access
+2. **District Heads** - District-level jurisdiction access
    - Email: `kapurthala.district@gov.in`
    - Password: `DistrictAdmin@123`
    - Scope: Kapurthala District and descendants
+   - Email: `amritsar.district@gov.in`
+   - Password: `DistrictAdmin@123`
+   - Scope: Amritsar District and descendants
 
-3. **Department Heads** (4) - Department-specific access within district
+3. **Department Heads** - Department-specific access within seeded districts
    - Road: `road.head@kapurthala.gov.in` / `DeptHead@123`
    - Water: `water.head@kapurthala.gov.in` / `DeptHead@123`
    - Electricity: `electricity.head@kapurthala.gov.in` / `DeptHead@123`
    - Sanitation: `sanitation.head@kapurthala.gov.in` / `DeptHead@123`
+   - Road: `road.head@amritsar.gov.in` / `DeptHead@123`
+   - Water: `water.head@amritsar.gov.in` / `DeptHead@123`
+   - Electricity: `electricity.head@amritsar.gov.in` / `DeptHead@123`
+   - Sanitation: `sanitation.head@amritsar.gov.in` / `DeptHead@123`
 
 **Location:** `/backend/scripts/seed-admin-hierarchy.js`
 
 **Customization:** Modify the script to add more jurisdictions (districts, blocks) or department heads as needed. Jurisdiction IDs are imported from the base seeding (`seed.js`).
+
+### Admin Flow Seed Expectations
+
+For the three-level admin portal, seed data should support these checks:
+
+- State admin can see all seeded Punjab districts and all descendant issues.
+- District admins can see only their own district descendants.
+- Department heads can see only issues assigned to their department.
+- At least one seeded district should have Road, Water, Electricity, and Sanitation department heads.
+- The admin hierarchy seed includes Kapurthala and Amritsar district heads so district-wise filtering and cross-district isolation can be tested without manual setup.

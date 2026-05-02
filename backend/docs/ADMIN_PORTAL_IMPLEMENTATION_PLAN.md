@@ -33,25 +33,35 @@ POST /auth/register/onboarding
 
 New admin behavior should live under `/admin/*`. New citizen timeline behavior should be added as a new route, not by changing existing issue list responses.
 
-## Simple Access Model
+## Phase Tracker
 
-Keep the admin model small:
+| Phase | Status | Notes |
+| --- | --- | --- |
+| Phase 1: Timeline foundation and safe docs alignment | Complete | New issue creation stores `CREATED` and `ROUTED_TO_DISTRICT` timeline rows without changing citizen request/response contracts. Timeline readers avoid duplicate created events. Seed docs and admin docs were aligned with the three-level target model. |
+| Phase 2: Admin scoped filters and session restore | Complete | Added state district-wise filters, status groups, category/date/department filters, stronger district/department access checks, designation-based role gates, and real `GET /admin/me` profile restore in the portal. |
+| Phase 3: Admin management APIs | Complete | Added state district/district-head APIs and district department/department-head APIs with designation and jurisdiction checks. |
+| Phase 4: Admin portal redesign | Complete | Added role-aware Issues/Management navigation, real management panels, fixed state read-only issue action behavior, and cleaner operational controls. |
+| Phase 5: Proof upload and full verification | Complete | Added department proof validation/upload endpoint, wired proof checking into the portal, documented proof behavior, and verified backend/admin builds. |
+
+## Current Target Access Model
+
+Keep the data model small, but expose three clear portal levels:
 
 ```text
-SUPER_ADMIN
-JURISDICTION_ADMIN
-DEPARTMENT_USER
+State Admin
+District Admin
+Department Admin
 ```
 
-Use the existing jurisdiction hierarchy to decide scope:
+Use the existing `AuthorityProfile` plus jurisdiction hierarchy to decide scope:
 
 ```text
-Punjab State admin -> all descendant districts, cities, wards, blocks, panchayats
-District admin -> all descendant city/ward or block/panchayat records in that district
-Department user -> assigned department plus jurisdiction scope
+State Admin -> assigned STATE jurisdiction and all descendant districts/cities/wards/blocks/panchayats
+District Admin -> assigned DISTRICT jurisdiction and all descendants in that district
+Department Admin -> assigned DISTRICT jurisdiction plus assigned department
 ```
 
-This avoids hardcoding separate concepts like state head, district head, and department head. The combination of role, jurisdiction, and department gives the required behavior.
+State admins are read-focused for issues and manage districts/district heads. District admins assign departments and close verified work. Department admins update work status and submit proof, but cannot close issues.
 
 ## Phase 1: Transparent Timeline Foundation
 
@@ -83,12 +93,13 @@ Recommended timeline types:
 
 ```text
 CREATED
-ASSIGNED
+ROUTED_TO_DISTRICT
+ASSIGNED_TO_DEPARTMENT
 FORWARDED
 REMARK_ADDED
 STATUS_CHANGED
-RESOLUTION_SUBMITTED
-CLOSED_WITH_PROOF
+PROOF_SUBMITTED
+CLOSED
 REJECTED
 ```
 
@@ -239,9 +250,10 @@ When an admin performs any action, the system:
 ```
 Accessible Jurisdictions: {State, District1, District2, City1, City2, Ward1, ..., Panchayat_N}
 - Can view ALL issues in entire state
-- Can assign to any district or department
-- Can forward between any departments
-- Can close any issue
+- Can filter district-wise and by status/status group
+- Can create districts under the state
+- Can create district heads
+- Does not manually assign or close issues in the normal flow
 ```
 
 **DISTRICT ADMIN** (assigned to district-level jurisdiction):
@@ -249,6 +261,8 @@ Accessible Jurisdictions: {State, District1, District2, City1, City2, Ward1, ...
 Accessible Jurisdictions: {District, City1, City2, Ward1, Ward2, Block1, ..., Panchayat_N}
 - Can view issues only in district and descendants
 - Can assign to departments within district
+- Can create departments and department heads
+- Can close issues after department proof review
 - Cannot see or modify state-level issues
 - Returns 403 when attempting to access issues from other districts
 ```
@@ -257,9 +271,10 @@ Accessible Jurisdictions: {District, City1, City2, Ward1, Ward2, Block1, ..., Pa
 ```
 Accessible Jurisdictions: {Assigned_Jurisdiction, Descendants}
 - Can view issues assigned to their department
-- Can add remarks and update status
-- Can forward to related departments in same jurisdiction
-- Cannot reassign to departments outside their jurisdiction scope
+- Can update status with remarks
+- Can submit completion proof with remarks
+- Cannot reassign issues
+- Cannot close issues
 ```
 
 #### API Behavior with Jurisdiction Checks
@@ -350,14 +365,13 @@ First screen:
 ```text
 Issue table
 Status counters
-Department filter
-Jurisdiction filter
+Role-specific filters
 Selected issue details
-Timeline preview
-Primary actions: assign, forward, add remarks, close with proof
+Full timeline
+Role-specific actions
 ```
 
-The first portal version can use mock data. Backend integration should come after Phase 1 and Phase 3 APIs exist.
+The portal should use real `/admin/*` APIs and must load the authenticated profile from `GET /admin/me` on refresh.
 
 ## Phase 5: Staff Management
 
@@ -375,7 +389,7 @@ Only `SUPER_ADMIN` should create or deactivate staff users initially.
 ## Transparency Rules
 
 - Default every movement to `visibleToCitizen = true`.
-- Require remarks before forwarding or resolving.
+- Require remarks before manual assignment, status update, proof submission, or closure.
 - Require final remarks and proof image before closing.
 - Citizens should see department names, movement type, remarks, status changes, timestamps, and proof images.
 - Citizens should not see private staff contact details.
@@ -495,4 +509,3 @@ For complete endpoint specifications, request/response examples, and error handl
 - [ ] Backward compatibility tests (existing citizen routes unchanged)
 - [ ] Load tests for jurisdiction hierarchy queries
 - [ ] Security tests (JWT validation, token expiry)
-

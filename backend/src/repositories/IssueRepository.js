@@ -41,7 +41,7 @@ const issueTimelineSelect = {
     where: {
       visibleToCitizen: true
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {
       id: true,
       message: true,
@@ -85,6 +85,26 @@ export const createIssue = async (data) => {
   return prisma.issue.create({
     data,
     select: issueSelect
+  });
+};
+
+export const createIssueWithTimeline = async ({ issueData, timelineUpdates }) => {
+  return prisma.$transaction(async (tx) => {
+    const issue = await tx.issue.create({
+      data: issueData,
+      select: issueSelect
+    });
+
+    for (const update of timelineUpdates || []) {
+      await tx.issueUpdate.create({
+        data: {
+          ...update,
+          issueId: issue.id
+        }
+      });
+    }
+
+    return issue;
   });
 };
 

@@ -1,4 +1,11 @@
 import prisma from '../config/prisma.js';
+import bcrypt from 'bcrypt';
+
+const STATUS_GROUPS = {
+  pending: ['open', 'assigned', 'in_progress'],
+  resolved: ['resolved'],
+  closed: ['closed']
+};
 
 // Helper: Get admin's role
 const getAdminRole = async (adminId) => {
@@ -9,7 +16,8 @@ const getAdminRole = async (adminId) => {
       authorityProfile: {
         include: {
           jurisdiction: true,
-          department: true
+          department: true,
+          designation: true
         }
       }
     }
@@ -19,8 +27,25 @@ const getAdminRole = async (adminId) => {
     roles: admin?.userRoles?.map(ur => ur.role?.name) || [],
     jurisdiction: admin?.authorityProfile?.jurisdiction,
     department: admin?.authorityProfile?.department,
+    designation: admin?.authorityProfile?.designation,
     jurisdictionId: admin?.authorityProfile?.jurisdictionId
   };
+};
+
+const isStateAdmin = (adminData) => {
+  return adminData.jurisdiction?.type === 'STATE'
+    && adminData.designation?.name === 'State Administrator';
+};
+
+const isDistrictAdmin = (adminData) => {
+  return adminData.jurisdiction?.type === 'DISTRICT'
+    && adminData.designation?.name === 'District Administrator';
+};
+
+const isDepartmentAdmin = (adminData) => {
+  return adminData.jurisdiction?.type === 'DISTRICT'
+    && adminData.designation?.name === 'Department Head'
+    && Boolean(adminData.department);
 };
 
 // Helper: Get jurisdiction scope
@@ -44,24 +69,200 @@ const getAdminJurisdictionScope = async (jurisdictionId) => {
   return Array.from(accessibleIds);
 };
 
+const parsePositiveInt = (value, fallback) => {
+  const parsed = parseInt(value ?? fallback, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const applyIssueFilters = (where, query, { allowDepartment = false, allowCategory = true } = {}) => {
+  const { status, statusGroup, departmentId, categoryId, dateFrom, dateTo } = query;
+
+  if (status) {
+    where.status = status;
+  } else if (statusGroup && STATUS_GROUPS[statusGroup]) {
+    where.status = { in: STATUS_GROUPS[statusGroup] };
+  }
+
+  if (allowDepartment && departmentId) {
+    where.departmentId = parseInt(departmentId, 10);
+  }
+
+  if (allowCategory && categoryId) {
+    where.categoryId = parseInt(categoryId, 10);
+  }
+
+  if (dateFrom || dateTo) {
+    where.createdAt = {};
+    if (dateFrom) {
+      const parsedDateFrom = new Date(dateFrom);
+      if (!Number.isNaN(parsedDateFrom.getTime())) where.createdAt.gte = parsedDateFrom;
+    }
+    if (dateTo) {
+      const parsedDateTo = new Date(dateTo);
+      if (!Number.isNaN(parsedDateTo.getTime())) where.createdAt.lte = parsedDateTo;
+    }
+    if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
+  }
+
+  return where;
+};
+
+const isIssueInJurisdictionScope = (issue, jurisdictionIds) => {
+  return Boolean(issue?.jurisdictionId && jurisdictionIds.includes(issue.jurisdictionId));
+};
+
+const toTrimmedString = (value) => {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+};
+
+const toNormalizedEmail = (value) => toTrimmedString(value).toLowerCase();
+
+const ensureDesignation = async (name) => {
+  return prisma.designation.upsert({
+    where: { name },
+    update: {},
+    create: { name }
+  });
+};
+
+const ensureGeneralDepartment = async () => {
+  return prisma.department.upsert({
+    where: { name: 'General Administration' },
+    update: {},
+    create: { name: 'General Administration' }
+  });
+};
+
+const ensureAdminRole = async () => {
+  return prisma.role.upsert({
+    where: { name: 'ADMIN' },
+    update: {},
+    create: { name: 'ADMIN' }
+  });
+};
+
+const buildStaffSelect = {
+  id: true,
+  email: true,
+  name: true,
+  phone: true,
+  isActive: true,
+  createdAt: true,
+  authorityProfile: {
+    include: {
+      department: { select: { id: true, name: true } },
+      designation: { select: { id: true, name: true } },
+      jurisdiction: { select: { id: true, name: true, type: true, parentId: true } }
+    }
+  }
+};
+
+const createHeadUser = async ({
+  email,
+  name,
+  phone,
+  password,
+  jurisdictionId,
+  departmentId,
+  designationName
+}) => {
+  const normalizedEmail = toNormalizedEmail(email);
+  const trimmedName = toTrimmedString(name);
+  const trimmedPassword = toTrimmedString(password);
+
+  if (!normalizedEmail || !trimmedName || !trimmedPassword || !jurisdictionId || !departmentId) {
+    const error = new Error('email, name, password, jurisdictionId, and departmentId are required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existingUser) {
+    const error = new Error('Email already exists');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [designation, role] = await Promise.all([
+    ensureDesignation(designationName),
+    ensureAdminRole()
+  ]);
+  const passwordHash = await bcrypt.hash(trimmedPassword, 10);
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: normalizedEmail,
+        name: trimmedName,
+        phone: toTrimmedString(phone) || null,
+        passwordHash,
+        isActive: true
+      }
+    });
+
+    await tx.authorityProfile.create({
+      data: {
+        userId: user.id,
+        jurisdictionId,
+        departmentId,
+        designationId: designation.id,
+        isActive: true
+      }
+    });
+
+    await tx.userRole.create({
+      data: {
+        userId: user.id,
+        roleId: role.id
+      }
+    });
+
+    return tx.user.findUnique({
+      where: { id: user.id },
+      select: buildStaffSelect
+    });
+  });
+};
+
+const isValidProofUrl = (value) => {
+  const trimmed = toTrimmedString(value);
+  return /^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed);
+};
+
 // STATE_ADMIN: View issues and forward to districts
 export const stateAdminListIssues = async (req, res) => {
   try {
     const adminId = req.user?.userId;
-    const { status, page = 1, limit = 20 } = req.query;
+    const { districtId } = req.query;
+    const page = parsePositiveInt(req.query.page, 1);
+    const limit = parsePositiveInt(req.query.limit, 20);
 
     if (!adminId) return res.sendStatus(401);
 
     const adminData = await getAdminRole(adminId);
-    if (adminData.jurisdiction?.type !== 'STATE') {
+    if (!isStateAdmin(adminData)) {
       return res.status(403).json({ error: 'STATE_ADMIN access required' });
     }
 
-    const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+    let accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+
+    if (districtId) {
+      const district = await prisma.jurisdiction.findUnique({
+        where: { id: districtId },
+        select: { id: true, parentId: true, type: true }
+      });
+
+      if (!district || district.type !== 'DISTRICT' || district.parentId !== adminData.jurisdictionId) {
+        return res.status(400).json({ error: 'Invalid districtId for this state admin' });
+      }
+
+      accessibleJurisdictions = await getAdminJurisdictionScope(districtId);
+    }
 
     const skip = (page - 1) * limit;
     const where = { jurisdictionId: { in: accessibleJurisdictions } };
-    if (status) where.status = status;
+    applyIssueFilters(where, req.query, { allowDepartment: true });
 
     const [issues, total] = await Promise.all([
       prisma.issue.findMany({
@@ -70,6 +271,7 @@ export const stateAdminListIssues = async (req, res) => {
         take: parseInt(limit),
         include: {
           user: { select: { id: true, email: true, name: true } },
+          department: { select: { id: true, name: true } },
           jurisdiction: { select: { id: true, name: true, type: true } },
           category: { select: { id: true, name: true } }
         },
@@ -91,8 +293,8 @@ export const stateAdminListIssues = async (req, res) => {
       issues,
       availableDistricts: districts,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
         totalPages: Math.ceil(total / limit)
       },
@@ -124,7 +326,7 @@ export const stateAdminForwardToDistrict = async (req, res) => {
     }
 
     const adminData = await getAdminRole(adminId);
-    if (adminData.jurisdiction?.type !== 'STATE') {
+    if (!isStateAdmin(adminData)) {
       return res.status(403).json({ error: 'STATE_ADMIN access required' });
     }
 
@@ -134,6 +336,11 @@ export const stateAdminForwardToDistrict = async (req, res) => {
     });
 
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+    const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+    if (!isIssueInJurisdictionScope(issue, accessibleJurisdictions)) {
+      return res.status(403).json({ error: 'Issue is outside your state scope' });
+    }
 
     // Verify target district exists and is child of state
     const targetDistrict = await prisma.jurisdiction.findUnique({
@@ -158,7 +365,7 @@ export const stateAdminForwardToDistrict = async (req, res) => {
           actorUserId: adminId,
           oldStatus: issue.status,
           newStatus: 'forwarded',
-          type: 'FORWARDED_TO_DISTRICT',
+          type: 'ROUTED_TO_DISTRICT',
           remarks,
           visibleToCitizen: true
         }
@@ -175,16 +382,165 @@ export const stateAdminForwardToDistrict = async (req, res) => {
   }
 };
 
+// STATE_ADMIN: List districts directly under their state
+export const stateAdminListDistricts = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isStateAdmin(adminData)) {
+      return res.status(403).json({ error: 'STATE_ADMIN access required' });
+    }
+
+    const districts = await prisma.jurisdiction.findMany({
+      where: {
+        type: 'DISTRICT',
+        parentId: adminData.jurisdictionId
+      },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        pincode: true,
+        createdAt: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return res.json({ districts });
+  } catch (error) {
+    console.error('stateAdminListDistricts error:', error);
+    return res.status(500).json({ error: 'Failed to fetch districts' });
+  }
+};
+
+// STATE_ADMIN: Create district under their state
+export const stateAdminCreateDistrict = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const name = toTrimmedString(req.body?.name);
+    const category = toTrimmedString(req.body?.category || 'URBAN').toUpperCase();
+    const pincode = toTrimmedString(req.body?.pincode) || null;
+
+    if (!adminId) return res.sendStatus(401);
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (!['URBAN', 'RURAL'].includes(category)) {
+      return res.status(400).json({ error: 'category must be URBAN or RURAL' });
+    }
+
+    const adminData = await getAdminRole(adminId);
+    if (!isStateAdmin(adminData)) {
+      return res.status(403).json({ error: 'STATE_ADMIN access required' });
+    }
+
+    const existing = await prisma.jurisdiction.findFirst({
+      where: {
+        name,
+        type: 'DISTRICT',
+        parentId: adminData.jurisdictionId
+      }
+    });
+    if (existing) return res.status(400).json({ error: 'District already exists in this state' });
+
+    const district = await prisma.jurisdiction.create({
+      data: {
+        name,
+        type: 'DISTRICT',
+        category,
+        parentId: adminData.jurisdictionId,
+        pincode
+      }
+    });
+
+    return res.status(201).json({ district, message: 'District created successfully' });
+  } catch (error) {
+    console.error('stateAdminCreateDistrict error:', error);
+    return res.status(500).json({ error: 'Failed to create district' });
+  }
+};
+
+// STATE_ADMIN: List district heads under their state
+export const stateAdminListDistrictHeads = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isStateAdmin(adminData)) {
+      return res.status(403).json({ error: 'STATE_ADMIN access required' });
+    }
+
+    const districtIds = await getAdminJurisdictionScope(adminData.jurisdictionId);
+    const heads = await prisma.user.findMany({
+      where: {
+        authorityProfile: {
+          jurisdictionId: { in: districtIds },
+          designation: { name: 'District Administrator' }
+        }
+      },
+      select: buildStaffSelect,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.json({ heads });
+  } catch (error) {
+    console.error('stateAdminListDistrictHeads error:', error);
+    return res.status(500).json({ error: 'Failed to fetch district heads' });
+  }
+};
+
+// STATE_ADMIN: Create a district head for a district under their state
+export const stateAdminCreateDistrictHead = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const { email, name, phone, password, districtId } = req.body;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isStateAdmin(adminData)) {
+      return res.status(403).json({ error: 'STATE_ADMIN access required' });
+    }
+
+    const district = await prisma.jurisdiction.findUnique({
+      where: { id: districtId },
+      select: { id: true, type: true, parentId: true }
+    });
+    if (!district || district.type !== 'DISTRICT' || district.parentId !== adminData.jurisdictionId) {
+      return res.status(400).json({ error: 'districtId must belong to your state' });
+    }
+
+    const generalDepartment = await ensureGeneralDepartment();
+    const head = await createHeadUser({
+      email,
+      name,
+      phone,
+      password,
+      jurisdictionId: districtId,
+      departmentId: generalDepartment.id,
+      designationName: 'District Administrator'
+    });
+
+    return res.status(201).json({ head, message: 'District head created successfully' });
+  } catch (error) {
+    console.error('stateAdminCreateDistrictHead error:', error);
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Failed to create district head'
+    });
+  }
+};
+
 // DISTRICT_ADMIN: List issues and departments
 export const districtAdminListIssues = async (req, res) => {
   try {
     const adminId = req.user?.userId;
-    const { status, departmentId, page = 1, limit = 20 } = req.query;
+    const page = parsePositiveInt(req.query.page, 1);
+    const limit = parsePositiveInt(req.query.limit, 20);
 
     if (!adminId) return res.sendStatus(401);
 
     const adminData = await getAdminRole(adminId);
-    if (adminData.jurisdiction?.type !== 'DISTRICT') {
+    if (!isDistrictAdmin(adminData)) {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
 
@@ -192,8 +548,7 @@ export const districtAdminListIssues = async (req, res) => {
 
     const skip = (page - 1) * limit;
     const where = { jurisdictionId: { in: accessibleJurisdictions } };
-    if (status) where.status = status;
-    if (departmentId) where.departmentId = parseInt(departmentId);
+    applyIssueFilters(where, req.query, { allowDepartment: true });
 
     const [issues, total] = await Promise.all([
       prisma.issue.findMany({
@@ -222,8 +577,8 @@ export const districtAdminListIssues = async (req, res) => {
       availableDepartments: departments,
       allStatuses: ['open', 'assigned', 'in_progress', 'forwarded', 'resolved', 'closed'],
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
         totalPages: Math.ceil(total / limit)
       },
@@ -255,7 +610,7 @@ export const districtAdminAssignToDepartment = async (req, res) => {
     }
 
     const adminData = await getAdminRole(adminId);
-    if (adminData.jurisdiction?.type !== 'DISTRICT') {
+    if (!isDistrictAdmin(adminData)) {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
 
@@ -264,6 +619,11 @@ export const districtAdminAssignToDepartment = async (req, res) => {
     });
 
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+    const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+    if (!isIssueInJurisdictionScope(issue, accessibleJurisdictions)) {
+      return res.status(403).json({ error: 'Issue is outside your district scope' });
+    }
 
     const [updatedIssue] = await prisma.$transaction([
       prisma.issue.update({
@@ -280,7 +640,7 @@ export const districtAdminAssignToDepartment = async (req, res) => {
           toDepartmentId: parseInt(departmentId),
           oldStatus: issue.status,
           newStatus: 'assigned',
-          type: 'ASSIGNED',
+          type: 'ASSIGNED_TO_DEPARTMENT',
           remarks,
           visibleToCitizen: true
         }
@@ -316,7 +676,7 @@ export const districtAdminCloseIssue = async (req, res) => {
     }
 
     const adminData = await getAdminRole(adminId);
-    if (adminData.jurisdiction?.type !== 'DISTRICT') {
+    if (!isDistrictAdmin(adminData)) {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
 
@@ -325,6 +685,11 @@ export const districtAdminCloseIssue = async (req, res) => {
     });
 
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+    const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+    if (!isIssueInJurisdictionScope(issue, accessibleJurisdictions)) {
+      return res.status(403).json({ error: 'Issue is outside your district scope' });
+    }
 
     const [updatedIssue] = await prisma.$transaction([
       prisma.issue.update({
@@ -337,7 +702,7 @@ export const districtAdminCloseIssue = async (req, res) => {
           actorUserId: adminId,
           oldStatus: issue.status,
           newStatus: 'closed',
-          type: 'CLOSED_WITH_PROOF',
+          type: 'CLOSED',
           remarks: finalRemarks,
           proofImageUrl,
           visibleToCitizen: true
@@ -355,24 +720,148 @@ export const districtAdminCloseIssue = async (req, res) => {
   }
 };
 
+// DISTRICT_ADMIN: List departments available to the district
+export const districtAdminListDepartments = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isDistrictAdmin(adminData)) {
+      return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
+    }
+
+    const departments = await prisma.department.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' }
+    });
+
+    return res.json({ departments });
+  } catch (error) {
+    console.error('districtAdminListDepartments error:', error);
+    return res.status(500).json({ error: 'Failed to fetch departments' });
+  }
+};
+
+// DISTRICT_ADMIN: Create a department option for assignment
+export const districtAdminCreateDepartment = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const name = toTrimmedString(req.body?.name);
+    if (!adminId) return res.sendStatus(401);
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const adminData = await getAdminRole(adminId);
+    if (!isDistrictAdmin(adminData)) {
+      return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
+    }
+
+    const existing = await prisma.department.findUnique({ where: { name } });
+    if (existing) return res.status(400).json({ error: 'Department already exists' });
+
+    const department = await prisma.department.create({ data: { name } });
+    return res.status(201).json({ department, message: 'Department created successfully' });
+  } catch (error) {
+    console.error('districtAdminCreateDepartment error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Department already exists' });
+    }
+    return res.status(500).json({ error: 'Failed to create department' });
+  }
+};
+
+// DISTRICT_ADMIN: List department heads under their district
+export const districtAdminListDepartmentHeads = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isDistrictAdmin(adminData)) {
+      return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
+    }
+
+    const heads = await prisma.user.findMany({
+      where: {
+        authorityProfile: {
+          jurisdictionId: adminData.jurisdictionId,
+          designation: { name: 'Department Head' }
+        }
+      },
+      select: buildStaffSelect,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.json({ heads });
+  } catch (error) {
+    console.error('districtAdminListDepartmentHeads error:', error);
+    return res.status(500).json({ error: 'Failed to fetch department heads' });
+  }
+};
+
+// DISTRICT_ADMIN: Create a department head under their district
+export const districtAdminCreateDepartmentHead = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const { email, name, phone, password, departmentId } = req.body;
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isDistrictAdmin(adminData)) {
+      return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
+    }
+
+    const department = await prisma.department.findUnique({
+      where: { id: parseInt(departmentId, 10) }
+    });
+    if (!department) {
+      return res.status(400).json({ error: 'departmentId is invalid' });
+    }
+
+    const head = await createHeadUser({
+      email,
+      name,
+      phone,
+      password,
+      jurisdictionId: adminData.jurisdictionId,
+      departmentId: department.id,
+      designationName: 'Department Head'
+    });
+
+    return res.status(201).json({ head, message: 'Department head created successfully' });
+  } catch (error) {
+    console.error('districtAdminCreateDepartmentHead error:', error);
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Failed to create department head'
+    });
+  }
+};
+
 // DEPARTMENT_ADMIN: List issues assigned to their department
 export const departmentAdminListIssues = async (req, res) => {
   try {
     const adminId = req.user?.userId;
-    const { status, page = 1, limit = 20 } = req.query;
+    const page = parsePositiveInt(req.query.page, 1);
+    const limit = parsePositiveInt(req.query.limit, 20);
 
     if (!adminId) return res.sendStatus(401);
 
     const adminData = await getAdminRole(adminId);
-    if (!adminData.department) {
+    if (!isDepartmentAdmin(adminData)) {
       return res.status(403).json({ error: 'DEPARTMENT_ADMIN access required' });
     }
 
     const skip = (page - 1) * limit;
+    const accessibleJurisdictions = adminData.jurisdictionId
+      ? await getAdminJurisdictionScope(adminData.jurisdictionId)
+      : [];
     const where = {
-      departmentId: adminData.department.id
+      departmentId: adminData.department.id,
+      ...(accessibleJurisdictions.length > 0 && {
+        jurisdictionId: { in: accessibleJurisdictions }
+      })
     };
-    if (status) where.status = status;
+    applyIssueFilters(where, req.query, { allowDepartment: false });
 
     const [issues, total] = await Promise.all([
       prisma.issue.findMany({
@@ -395,8 +884,8 @@ export const departmentAdminListIssues = async (req, res) => {
       departmentName: adminData.department.name,
       allStatuses: ['assigned', 'in_progress', 'resolved'],
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
         totalPages: Math.ceil(total / limit)
       },
@@ -428,7 +917,7 @@ export const departmentAdminSubmitProof = async (req, res) => {
     }
 
     const adminData = await getAdminRole(adminId);
-    if (!adminData.department) {
+    if (!isDepartmentAdmin(adminData)) {
       return res.status(403).json({ error: 'DEPARTMENT_ADMIN access required' });
     }
 
@@ -440,6 +929,13 @@ export const departmentAdminSubmitProof = async (req, res) => {
 
     if (issue.departmentId !== adminData.department.id) {
       return res.status(403).json({ error: 'Issue not assigned to your department' });
+    }
+
+    if (adminData.jurisdictionId) {
+      const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+      if (!isIssueInJurisdictionScope(issue, accessibleJurisdictions)) {
+        return res.status(403).json({ error: 'Issue is outside your district scope' });
+      }
     }
 
     const [updatedIssue] = await prisma.$transaction([
@@ -485,12 +981,12 @@ export const departmentAdminUpdateStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid issue ID' });
     }
 
-    if (!newStatus) {
-      return res.status(400).json({ error: 'newStatus is required' });
+    if (!newStatus || !remarks || remarks.trim() === '') {
+      return res.status(400).json({ error: 'newStatus and remarks are required' });
     }
 
     const adminData = await getAdminRole(adminId);
-    if (!adminData.department) {
+    if (!isDepartmentAdmin(adminData)) {
       return res.status(403).json({ error: 'DEPARTMENT_ADMIN access required' });
     }
 
@@ -502,6 +998,13 @@ export const departmentAdminUpdateStatus = async (req, res) => {
 
     if (issue.departmentId !== adminData.department.id) {
       return res.status(403).json({ error: 'Issue not assigned to your department' });
+    }
+
+    if (adminData.jurisdictionId) {
+      const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
+      if (!isIssueInJurisdictionScope(issue, accessibleJurisdictions)) {
+        return res.status(403).json({ error: 'Issue is outside your district scope' });
+      }
     }
 
     // Department admin can only set to in_progress or resolved
@@ -521,7 +1024,7 @@ export const departmentAdminUpdateStatus = async (req, res) => {
           oldStatus: issue.status,
           newStatus,
           type: 'STATUS_CHANGED',
-          remarks: remarks || `Status updated to ${newStatus}`,
+          remarks,
           visibleToCitizen: true
         }
       })
@@ -534,5 +1037,36 @@ export const departmentAdminUpdateStatus = async (req, res) => {
   } catch (error) {
     console.error('departmentAdminUpdateStatus error:', error);
     return res.status(500).json({ error: 'Failed to update issue status' });
+  }
+};
+
+// DEPARTMENT_ADMIN: Validate or stage proof image URL/data URL for submit-proof
+export const departmentAdminUploadProof = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const proofImageUrl = toTrimmedString(
+      req.body?.proofImageUrl || req.body?.imageUrl || req.body?.dataUrl
+    );
+
+    if (!adminId) return res.sendStatus(401);
+
+    const adminData = await getAdminRole(adminId);
+    if (!isDepartmentAdmin(adminData)) {
+      return res.status(403).json({ error: 'DEPARTMENT_ADMIN access required' });
+    }
+
+    if (!proofImageUrl || !isValidProofUrl(proofImageUrl)) {
+      return res.status(400).json({
+        error: 'proofImageUrl must be an http(s) URL or data:image URL'
+      });
+    }
+
+    return res.status(201).json({
+      proofImageUrl,
+      message: 'Proof image accepted'
+    });
+  } catch (error) {
+    console.error('departmentAdminUploadProof error:', error);
+    return res.status(500).json({ error: 'Failed to upload proof' });
   }
 };

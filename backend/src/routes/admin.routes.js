@@ -15,12 +15,21 @@ import {
 import {
   stateAdminListIssues,
   stateAdminForwardToDistrict,
+  stateAdminListDistricts,
+  stateAdminCreateDistrict,
+  stateAdminListDistrictHeads,
+  stateAdminCreateDistrictHead,
   districtAdminListIssues,
   districtAdminAssignToDepartment,
   districtAdminCloseIssue,
+  districtAdminListDepartments,
+  districtAdminCreateDepartment,
+  districtAdminListDepartmentHeads,
+  districtAdminCreateDepartmentHead,
   departmentAdminListIssues,
   departmentAdminSubmitProof,
-  departmentAdminUpdateStatus
+  departmentAdminUpdateStatus,
+  departmentAdminUploadProof
 } from '../controllers/roleBasedIssueManagement.controller.js';
 import {
   listStaffUsers,
@@ -57,16 +66,25 @@ router.post('/issues/:issueId/close', adminAuthMiddleware, closeIssue);
 // STATE_ADMIN Routes
 router.get('/state/issues', adminAuthMiddleware, stateAdminListIssues);
 router.patch('/state/issues/:issueId/forward-to-district', adminAuthMiddleware, stateAdminForwardToDistrict);
+router.get('/state/districts', adminAuthMiddleware, stateAdminListDistricts);
+router.post('/state/districts', adminAuthMiddleware, stateAdminCreateDistrict);
+router.get('/state/district-heads', adminAuthMiddleware, stateAdminListDistrictHeads);
+router.post('/state/district-heads', adminAuthMiddleware, stateAdminCreateDistrictHead);
 
 // DISTRICT_ADMIN Routes
 router.get('/district/issues', adminAuthMiddleware, districtAdminListIssues);
 router.patch('/district/issues/:issueId/assign-to-department', adminAuthMiddleware, districtAdminAssignToDepartment);
 router.post('/district/issues/:issueId/close', adminAuthMiddleware, districtAdminCloseIssue);
+router.get('/district/departments', adminAuthMiddleware, districtAdminListDepartments);
+router.post('/district/departments', adminAuthMiddleware, districtAdminCreateDepartment);
+router.get('/district/department-heads', adminAuthMiddleware, districtAdminListDepartmentHeads);
+router.post('/district/department-heads', adminAuthMiddleware, districtAdminCreateDepartmentHead);
 
 // DEPARTMENT_ADMIN Routes
 router.get('/department/issues', adminAuthMiddleware, departmentAdminListIssues);
 router.patch('/department/issues/:issueId/submit-proof', adminAuthMiddleware, departmentAdminSubmitProof);
 router.patch('/department/issues/:issueId/update-status', adminAuthMiddleware, departmentAdminUpdateStatus);
+router.post('/department/proofs/upload', adminAuthMiddleware, departmentAdminUploadProof);
 
 // Staff Management
 router.get('/staff', adminAuthMiddleware, listStaffUsers);

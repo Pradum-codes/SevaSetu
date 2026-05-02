@@ -374,7 +374,7 @@ export const getAdminIssueTimeline = async (req, res) => {
       where: { id: parsedId },
       include: {
         updates: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           include: {
             actor: { select: { id: true, email: true, name: true } },
             fromDepartment: { select: { id: true, name: true } },
@@ -388,31 +388,35 @@ export const getAdminIssueTimeline = async (req, res) => {
       return res.status(404).json({ error: 'Issue not found' });
     }
 
-    const timeline = [
-      {
-        type: 'CREATED',
-        remarks: 'Issue reported by citizen.',
-        fromDepartment: null,
-        toDepartment: null,
-        oldStatus: null,
-        newStatus: 'open',
-        proofImageUrl: null,
-        actor: null,
-        createdAt: issue.createdAt
-      },
-      ...issue.updates.map((update) => ({
-        type: update.type,
-        remarks: update.remarks,
-        fromDepartment: update.fromDepartment,
-        toDepartment: update.toDepartment,
-        oldStatus: update.oldStatus,
-        newStatus: update.newStatus,
-        proofImageUrl: update.proofImageUrl,
-        actor: update.actor,
-        visibleToCitizen: update.visibleToCitizen,
-        createdAt: update.createdAt
-      }))
-    ];
+    const mappedUpdates = issue.updates.map((update) => ({
+      type: update.type,
+      remarks: update.remarks,
+      fromDepartment: update.fromDepartment,
+      toDepartment: update.toDepartment,
+      oldStatus: update.oldStatus,
+      newStatus: update.newStatus,
+      proofImageUrl: update.proofImageUrl,
+      actor: update.actor,
+      visibleToCitizen: update.visibleToCitizen,
+      createdAt: update.createdAt
+    }));
+    const hasStoredCreatedEvent = mappedUpdates.some((update) => update.type === 'CREATED');
+    const timeline = hasStoredCreatedEvent
+      ? mappedUpdates
+      : [
+          {
+            type: 'CREATED',
+            remarks: 'Issue reported by citizen.',
+            fromDepartment: null,
+            toDepartment: null,
+            oldStatus: null,
+            newStatus: 'open',
+            proofImageUrl: null,
+            actor: null,
+            createdAt: issue.createdAt
+          },
+          ...mappedUpdates
+        ];
 
     return res.json({
       issueId: issue.id,
@@ -469,7 +473,7 @@ export const assignIssue = async (req, res) => {
           toDepartmentId: parseInt(departmentId),
           oldStatus: issue.status,
           newStatus: 'assigned',
-          type: 'ASSIGNED',
+          type: 'ASSIGNED_TO_DEPARTMENT',
           remarks: remarks || 'Issue assigned to department.',
           visibleToCitizen: true
         }
@@ -715,7 +719,7 @@ export const closeIssue = async (req, res) => {
           actorUserId: adminId,
           oldStatus: issue.status,
           newStatus: 'closed',
-          type: 'CLOSED_WITH_PROOF',
+          type: 'CLOSED',
           remarks: finalRemarks,
           proofImageUrl,
           visibleToCitizen: true

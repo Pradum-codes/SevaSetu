@@ -10,6 +10,7 @@ const prisma = new PrismaClient();
 // Jurisdiction IDs from seed.js
 const JURISDICTIONS = {
   punjabState: '10000000-0000-0000-0000-000000000000',
+  amritsarDistrict: '20000001-0000-0000-0000-000000000000',
   kapurthalaDistrict: '20000006-0000-0000-0000-000000000000',
   kapurthalaCity: '20000006-1000-0000-0000-000000000000',
   kapurthalaWard: '20000006-1110-0000-0000-000000000000',
@@ -159,39 +160,66 @@ const main = async () => {
     );
     console.log(`  ✓ ${stateAdmin.user.email}`);
 
-    // 2. KAPURTHALA DISTRICT HEAD
-    console.log('\nCreating District Head...');
-    const districtAdmin = await createAdmin(
-      'kapurthala.district@gov.in',
-      'DistrictAdmin@123',
-      'Kapurthala District Administrator',
-      JURISDICTIONS.kapurthalaDistrict,
-      null, // No specific department for district head
-      DESIGNATIONS.DISTRICT_ADMINISTRATOR,
-      departments['General Administration']
-    );
-    console.log(`  ✓ ${districtAdmin.user.email}`);
-
-    // 3. DEPARTMENT HEADS for Kapurthala
-    console.log('\nCreating Department Heads for Kapurthala...');
-    const departmentHeads = [
-      { dept: 'Road', email: 'road.head@kapurthala.gov.in', name: 'Road Department Head' },
-      { dept: 'Water', email: 'water.head@kapurthala.gov.in', name: 'Water Department Head' },
-      { dept: 'Electricity', email: 'electricity.head@kapurthala.gov.in', name: 'Electricity Department Head' },
-      { dept: 'Sanitation', email: 'sanitation.head@kapurthala.gov.in', name: 'Sanitation Department Head' },
+    // 2. DISTRICT HEADS
+    console.log('\nCreating District Heads...');
+    const districtAdmins = [
+      {
+        email: 'kapurthala.district@gov.in',
+        name: 'Kapurthala District Administrator',
+        jurisdictionId: JURISDICTIONS.kapurthalaDistrict,
+        label: 'Kapurthala'
+      },
+      {
+        email: 'amritsar.district@gov.in',
+        name: 'Amritsar District Administrator',
+        jurisdictionId: JURISDICTIONS.amritsarDistrict,
+        label: 'Amritsar'
+      }
     ];
 
-    for (const deptHead of departmentHeads) {
+    for (const district of districtAdmins) {
       const admin = await createAdmin(
-        deptHead.email,
-        'DeptHead@123',
-        deptHead.name,
-        JURISDICTIONS.kapurthalaDistrict,
-        departments[deptHead.dept],
-        DESIGNATIONS.DEPARTMENT_HEAD,
+        district.email,
+        'DistrictAdmin@123',
+        district.name,
+        district.jurisdictionId,
+        null, // No specific department for district head
+        DESIGNATIONS.DISTRICT_ADMINISTRATOR,
         departments['General Administration']
       );
-      console.log(`  ✓ ${admin.user.email} (${deptHead.dept} Department)`);
+      console.log(`  ✓ ${admin.user.email} (${district.label})`);
+    }
+
+    // 3. DEPARTMENT HEADS for seeded districts
+    console.log('\nCreating Department Heads...');
+    const departmentHeadDistricts = [
+      {
+        label: 'Kapurthala',
+        jurisdictionId: JURISDICTIONS.kapurthalaDistrict,
+        emailSuffix: 'kapurthala.gov.in'
+      },
+      {
+        label: 'Amritsar',
+        jurisdictionId: JURISDICTIONS.amritsarDistrict,
+        emailSuffix: 'amritsar.gov.in'
+      }
+    ];
+    const departmentNames = ['Road', 'Water', 'Electricity', 'Sanitation'];
+
+    for (const district of departmentHeadDistricts) {
+      for (const dept of departmentNames) {
+        const emailPrefix = dept.toLowerCase();
+        const admin = await createAdmin(
+          `${emailPrefix}.head@${district.emailSuffix}`,
+          'DeptHead@123',
+          `${district.label} ${dept} Department Head`,
+          district.jurisdictionId,
+          departments[dept],
+          DESIGNATIONS.DEPARTMENT_HEAD,
+          departments['General Administration']
+        );
+        console.log(`  ✓ ${admin.user.email} (${district.label} ${dept})`);
+      }
     }
 
     // 4. Print credentials summary
@@ -211,13 +239,21 @@ const main = async () => {
     console.log('  Level: JURISDICTION_ADMIN (District Jurisdiction)');
     console.log('  Access: Kapurthala city, ward, and descendants\n');
 
-    console.log('DEPARTMENT HEADS (Kapurthala):');
-    for (const deptHead of departmentHeads) {
-      console.log(`  Email: ${deptHead.email}`);
-      console.log(`  Password: DeptHead@123`);
-      console.log(`  Level: DEPARTMENT_USER (${deptHead.dept} Department)`);
-      console.log(`  Jurisdiction: Kapurthala District`);
-      console.log('');
+    console.log('DISTRICT HEAD (Amritsar):');
+    console.log('  Email: amritsar.district@gov.in');
+    console.log('  Password: DistrictAdmin@123');
+    console.log('  Level: JURISDICTION_ADMIN (District Jurisdiction)');
+    console.log('  Access: Amritsar city, ward, and descendants\n');
+
+    console.log('DEPARTMENT HEADS:');
+    for (const district of departmentHeadDistricts) {
+      for (const dept of departmentNames) {
+        console.log(`  Email: ${dept.toLowerCase()}.head@${district.emailSuffix}`);
+        console.log(`  Password: DeptHead@123`);
+        console.log(`  Level: DEPARTMENT_USER (${dept} Department)`);
+        console.log(`  Jurisdiction: ${district.label} District`);
+        console.log('');
+      }
     }
 
     console.log('==========================================\n');

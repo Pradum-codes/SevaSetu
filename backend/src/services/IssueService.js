@@ -1,5 +1,5 @@
 import {
-  createIssue as createIssueRecord,
+  createIssueWithTimeline,
   findCategoryById,
   findIssueByClientId,
   findIssueTimelineById,
@@ -34,12 +34,17 @@ export class IssueServiceError extends Error {
 
 const TIMELINE_TYPE_MAP = new Set([
   'CREATED',
+  'ROUTED_TO_DISTRICT',
   'ASSIGNED',
+  'ASSIGNED_TO_DEPARTMENT',
   'FORWARDED',
+  'FORWARDED_TO_DISTRICT',
   'REMARK_ADDED',
   'STATUS_CHANGED',
   'RESOLUTION_SUBMITTED',
+  'PROOF_SUBMITTED',
   'CLOSED_WITH_PROOF',
+  'CLOSED',
   'REJECTED'
 ]);
 
@@ -223,7 +228,13 @@ const resolveIssueJurisdiction = async (payload) => {
       throw new IssueServiceError('wardId must belong to the provided cityId');
     }
 
-    return ward.id;
+    return {
+      jurisdictionId: ward.id,
+      district: {
+        id: district.id,
+        name: district.name
+      }
+    };
   }
 
   if (district.category === 'RURAL') {
@@ -245,7 +256,13 @@ const resolveIssueJurisdiction = async (payload) => {
       throw new IssueServiceError('panchayatId must belong to the provided blockId');
     }
 
-    return panchayat.id;
+    return {
+      jurisdictionId: panchayat.id,
+      district: {
+        id: district.id,
+        name: district.name
+      }
+    };
   }
 
   throw new IssueServiceError('district category is unsupported');
@@ -278,7 +295,11 @@ const inferTimelineType = (update) => {
   }
 
   if (update.proofImageUrl) {
-    return 'CLOSED_WITH_PROOF';
+    return update.newStatus === 'resolved' ? 'PROOF_SUBMITTED' : 'CLOSED_WITH_PROOF';
+  }
+
+  if (update.newStatus === 'open' && update.type === 'ROUTED_TO_DISTRICT') {
+    return 'ROUTED_TO_DISTRICT';
   }
 
   if (update.oldStatus && update.newStatus && update.oldStatus !== update.newStatus) {
@@ -286,7 +307,7 @@ const inferTimelineType = (update) => {
   }
 
   if (update.newStatus === 'assigned') {
-    return 'ASSIGNED';
+    return 'ASSIGNED_TO_DEPARTMENT';
   }
 
   if (update.newStatus === 'forwarded') {
@@ -349,7 +370,7 @@ export const createIssue = async ({ payload, userId }) => {
   if (!category) {
     throw new IssueServiceError('categoryId is invalid: no matching category found');
   }
-  const jurisdictionId = await resolveIssueJurisdiction(payload);
+  const { jurisdictionId, district } = await resolveIssueJurisdiction(payload);
 
   const existingIssue = await findIssueByClientId(clientId);
   if (existingIssue) {
@@ -366,7 +387,7 @@ export const createIssue = async ({ payload, userId }) => {
     };
   }
 
-  const issue = await createIssueRecord({
+  const issueData = {
     clientId,
     userId,
     categoryId,
@@ -384,6 +405,26 @@ export const createIssue = async ({ payload, userId }) => {
     images: {
       create: imageUrls.map((imageUrl) => ({ imageUrl }))
     }
+  };
+
+  const issue = await createIssueWithTimeline({
+    issueData,
+    timelineUpdates: [
+      {
+        type: 'CREATED',
+        oldStatus: null,
+        newStatus: 'open',
+        remarks: 'Issue reported by citizen.',
+        visibleToCitizen: true
+      },
+      {
+        type: 'ROUTED_TO_DISTRICT',
+        oldStatus: 'open',
+        newStatus: 'open',
+        remarks: `Issue routed automatically to ${district.name} based on submitted jurisdiction.`,
+        visibleToCitizen: true
+      }
+    ]
   });
 
   return {
@@ -564,20 +605,24 @@ export const getIssueTimeline = async ({ issueId }) => {
     throw new IssueServiceError('Issue not found', 404);
   }
 
-  const timeline = [
-    {
-      type: 'CREATED',
-      remarks: 'Issue reported by citizen.',
-      fromDepartment: null,
-      toDepartment: null,
-      oldStatus: null,
-      newStatus: 'open',
-      proofImageUrl: null,
-      actor: null,
-      createdAt: issue.createdAt
-    },
-    ...issue.updates.map(mapTimelineUpdate)
-  ];
+  const mappedUpdates = issue.updates.map(mapTimelineUpdate);
+  const hasStoredCreatedEvent = mappedUpdates.some((update) => update.type === 'CREATED');
+  const timeline = hasStoredCreatedEvent
+    ? mappedUpdates
+    : [
+        {
+          type: 'CREATED',
+          remarks: 'Issue reported by citizen.',
+          fromDepartment: null,
+          toDepartment: null,
+          oldStatus: null,
+          newStatus: 'open',
+          proofImageUrl: null,
+          actor: null,
+          createdAt: issue.createdAt
+        },
+        ...mappedUpdates
+      ];
 
   return {
     issueId: issue.id,

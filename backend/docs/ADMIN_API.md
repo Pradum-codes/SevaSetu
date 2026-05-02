@@ -406,18 +406,162 @@ All Phase 3 endpoints require the admin JWT token in the `Authorization` header.
   - 404: issue not found
   - 500: server error
 
+## Role-Based Admin Issue APIs
+
+These endpoints are the preferred portal APIs for the three-level admin flow.
+They require an admin JWT and use `AuthorityProfile.designation` plus jurisdiction scope:
+
+- `State Administrator` with `STATE` jurisdiction -> state admin.
+- `District Administrator` with `DISTRICT` jurisdiction -> district admin.
+- `Department Head` with `DISTRICT` jurisdiction and department -> department admin.
+
+### GET /admin/state/issues
+
+State-scoped issue list. Supports:
+
+- `districtId`: optional district under the admin's state.
+- `status`: exact status filter.
+- `statusGroup`: `pending`, `resolved`, or `closed`. Ignored when `status` is provided.
+- `departmentId`
+- `categoryId`
+- `dateFrom`
+- `dateTo`
+- `page`
+- `limit`
+
+Returns `availableDistricts` for the state filter dropdown.
+
+### GET /admin/district/issues
+
+District-scoped issue list. Supports:
+
+- `status`
+- `statusGroup`
+- `departmentId`
+- `categoryId`
+- `dateFrom`
+- `dateTo`
+- `page`
+- `limit`
+
+Returns `availableDepartments` for assignment and filtering.
+
+### GET /admin/department/issues
+
+Department-scoped issue list. A department head only receives issues assigned to their department and district.
+Supports:
+
+- `status`
+- `statusGroup`
+- `categoryId`
+- `dateFrom`
+- `dateTo`
+- `page`
+- `limit`
+
+### Role-Based Write Rules
+
+- `PATCH /admin/district/issues/:issueId/assign-to-department` requires district-admin access, district scope, `departmentId`, and `remarks`.
+- `POST /admin/district/issues/:issueId/close` requires district-admin access, district scope, `finalRemarks`, and `proofImageUrl`.
+- `PATCH /admin/department/issues/:issueId/update-status` requires department-head access, assigned department scope, `newStatus`, and `remarks`.
+- `PATCH /admin/department/issues/:issueId/submit-proof` requires department-head access, assigned department scope, `remarks`, and `proofImageUrl`.
+
+`pending` is a filter group, not a stored status. It maps to `open`, `assigned`, and `in_progress`.
+
+## Role-Based Admin Management APIs
+
+### State Admin
+
+```text
+GET  /admin/state/districts
+POST /admin/state/districts
+GET  /admin/state/district-heads
+POST /admin/state/district-heads
+```
+
+Create district body:
+
+```json
+{
+  "name": "New District",
+  "category": "URBAN",
+  "pincode": "144001"
+}
+```
+
+Create district head body:
+
+```json
+{
+  "districtId": "district-uuid",
+  "name": "District Head",
+  "email": "district.head@gov.in",
+  "phone": "9876543210",
+  "password": "StrongPassword@123"
+}
+```
+
+### District Admin
+
+```text
+GET  /admin/district/departments
+POST /admin/district/departments
+GET  /admin/district/department-heads
+POST /admin/district/department-heads
+```
+
+Create department body:
+
+```json
+{
+  "name": "Road"
+}
+```
+
+Create department head body:
+
+```json
+{
+  "departmentId": 1,
+  "name": "Road Department Head",
+  "email": "road.head@gov.in",
+  "phone": "9876543210",
+  "password": "StrongPassword@123"
+}
+```
+
+### Department Admin Proof Upload
+
+```text
+POST /admin/department/proofs/upload
+```
+
+Body:
+
+```json
+{
+  "proofImageUrl": "https://example.com/proof.jpg"
+}
+```
+
+The endpoint currently validates and accepts `http(s)` image URLs or `data:image/...` URLs and returns the accepted URL for use with `submit-proof`.
+
 ## Timeline Entry Types
 
 | Type | Description | Citizen Visible |
 |------|-------------|-----------------|
 | CREATED | Issue initially reported | Yes |
-| ASSIGNED | Assigned to department | Yes |
-| FORWARDED | Forwarded to another department | Yes |
-| REMARK_ADDED | Admin added remarks | Configurable |
+| ROUTED_TO_DISTRICT | Issue automatically routed to the concerned district after creation | Yes |
+| ASSIGNED_TO_DEPARTMENT | District admin assigned the issue to a department | Yes |
+| FORWARDED | Forwarded to another department, legacy/backward-compatible movement | Yes |
+| REMARK_ADDED | Admin added remarks | Configurable, default should be public |
 | STATUS_CHANGED | Status changed | Yes |
-| RESOLUTION_SUBMITTED | Resolution submitted | Yes |
-| CLOSED_WITH_PROOF | Issue closed with proof | Yes |
+| PROOF_SUBMITTED | Department submitted completion remarks and proof | Yes |
+| CLOSED | District admin verified proof and closed the issue | Yes |
+| CLOSED_WITH_PROOF | Legacy close event type, still accepted for old records | Yes |
 | REJECTED | Issue rejected | Yes |
+
+New issue creation records `CREATED` and `ROUTED_TO_DISTRICT` as stored timeline rows. Timeline readers should synthesize `CREATED` only for older issues that do not already have a stored creation event.
 
 ## Creating an initial admin (seed)
 
@@ -437,4 +581,3 @@ npm run create-admin -- --email admin@example.com --password "secret" --name "Ad
 Notes:
 - The script will `upsert` a `User` by email, hash the provided password using bcrypt, and assign the `ADMIN` role.
 - Ensure `DATABASE_URL` is set in your environment or in a `.env` file.
-
