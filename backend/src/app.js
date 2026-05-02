@@ -16,6 +16,23 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+if (process.env.ADMIN_API_TIMING === 'true' || process.env.NODE_ENV === 'development') {
+  app.use('/admin', (req, res, next) => {
+    const startedAt = Date.now();
+    res.on('finish', () => {
+    //   console.log(
+    //     `[admin-api] ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - startedAt}ms`
+    //   );
+    });
+    next();
+  });
+}
+
+app.use('/admin', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Routes
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });

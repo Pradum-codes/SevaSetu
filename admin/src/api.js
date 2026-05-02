@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const inFlightGetRequests = new Map();
 
 // Get stored token from localStorage
 export const getToken = () => localStorage.getItem('admin_token');
@@ -14,7 +15,28 @@ export const isAuthenticated = () => !!getToken();
 
 // Make API request with auth headers
 const apiCall = async (endpoint, options = {}) => {
+  const method = options.method || 'GET';
+  const cacheKey = method === 'GET' ? endpoint : null;
+
+  if (cacheKey && inFlightGetRequests.has(cacheKey)) {
+    return inFlightGetRequests.get(cacheKey);
+  }
+
+  const requestPromise = performApiCall(endpoint, options, method);
+
+  if (cacheKey) {
+    inFlightGetRequests.set(cacheKey, requestPromise);
+    requestPromise.finally(() => {
+      inFlightGetRequests.delete(cacheKey);
+    });
+  }
+
+  return requestPromise;
+};
+
+const performApiCall = async (endpoint, options = {}, method = 'GET') => {
   const token = getToken();
+  const startedAt = performance.now();
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -24,10 +46,18 @@ const apiCall = async (endpoint, options = {}) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } finally {
+    if (import.meta.env.DEV || import.meta.env.VITE_API_TIMING === 'true') {
+    //   const duration = Math.round(performance.now() - startedAt);
+    //   console.debug(`[admin-api] ${method} ${endpoint} ${duration}ms`);
+    }
+  }
 
   if (response.status === 401) {
     // Unauthorized - clear token and let app redirect to login

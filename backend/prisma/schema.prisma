@@ -105,6 +105,7 @@ model Jurisdiction {
   issues            Issue[]
   authorityProfiles AuthorityProfile[]
 
+  @@index([parentId])
   @@map("jurisdictions")
 }
 
@@ -144,6 +145,10 @@ model Issue {
   updates    IssueUpdate[]
   images     IssueImage[]
 
+  @@index([jurisdictionId, createdAt])
+  @@index([departmentId, createdAt])
+  @@index([status, createdAt])
+  @@index([categoryId])
   @@map("issues")
 }
 
@@ -201,6 +206,8 @@ model AuthorityProfile {
   department   Department   @relation(fields: [departmentId], references: [id])
   jurisdiction Jurisdiction @relation(fields: [jurisdictionId], references: [id])
 
+  @@index([jurisdictionId, designationId])
+  @@index([departmentId])
   @@map("authority_profiles")
 }
 
@@ -224,6 +231,7 @@ model IssueUpdate {
   fromDepartment Department?  @relation("IssueUpdateFromDepartment", fields: [fromDepartmentId], references: [id])
   toDepartment   Department?  @relation("IssueUpdateToDepartment", fields: [toDepartmentId], references: [id])
 
+  @@index([issueId, createdAt])
   @@map("issue_updates")
 }
 
@@ -235,5 +243,6 @@ model IssueImage {
 
   issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
+  @@index([issueId])
   @@map("issue_images")
 }

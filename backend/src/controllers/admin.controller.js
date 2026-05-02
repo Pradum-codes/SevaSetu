@@ -9,6 +9,11 @@ const toTrimmedString = (value) => {
 
 const toNormalizedEmail = (value) => toTrimmedString(value).toLowerCase();
 
+const JURISDICTION_SCOPE_CACHE_TTL_MS = 60 * 1000;
+const jurisdictionScopeCache = new Map();
+const ADMIN_JURISDICTION_CACHE_TTL_MS = 60 * 1000;
+const adminJurisdictionCache = new Map();
+
 const buildAdminToken = (admin) => {
   return jwt.sign(
     {
@@ -175,12 +180,25 @@ export const getAdminMe = async (req, res) => {
 // Helper: Check if admin has access to an issue based on jurisdiction scope
 // Helper: Check if admin has access to an issue based on jurisdiction scope
 const checkIssueAccess = async (adminId, issueId) => {
-  const admin = await prisma.user.findUnique({
-    where: { id: adminId },
-    select: { authorityProfile: { select: { jurisdictionId: true } } }
-  });
+  const cached = adminJurisdictionCache.get(adminId);
+  let jurisdictionId = cached?.expiresAt > Date.now() ? cached.jurisdictionId : null;
 
-  if (!admin?.authorityProfile?.jurisdictionId) {
+  if (!jurisdictionId) {
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+      select: { authorityProfile: { select: { jurisdictionId: true } } }
+    });
+    jurisdictionId = admin?.authorityProfile?.jurisdictionId;
+
+    if (jurisdictionId) {
+      adminJurisdictionCache.set(adminId, {
+        jurisdictionId,
+        expiresAt: Date.now() + ADMIN_JURISDICTION_CACHE_TTL_MS
+      });
+    }
+  }
+
+  if (!jurisdictionId) {
     throw new Error('Admin has no jurisdiction assigned');
   }
 
@@ -193,9 +211,7 @@ const checkIssueAccess = async (adminId, issueId) => {
     return { hasAccess: false, issue: null, reason: 'Issue not found' };
   }
 
-  const accessibleJurisdictions = await getAdminJurisdictionScope(
-    admin.authorityProfile.jurisdictionId
-  );
+  const accessibleJurisdictions = await getAdminJurisdictionScope(jurisdictionId);
 
   const hasAccess = accessibleJurisdictions.includes(issue.jurisdictionId);
   return { hasAccess, issue, reason: hasAccess ? null : 'Issue is outside your jurisdiction scope' };
@@ -204,23 +220,33 @@ const checkIssueAccess = async (adminId, issueId) => {
 // Helper: Get jurisdiction scope for an admin
 // If admin is at DISTRICT level, gets all descendant cities, wards, blocks, etc.
 const getAdminJurisdictionScope = async (jurisdictionId) => {
-  const accessibleIds = new Set([jurisdictionId]);
-  const queue = [jurisdictionId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    const children = await prisma.jurisdiction.findMany({
-      where: { parentId: currentId },
-      select: { id: true }
-    });
-
-    children.forEach(child => {
-      accessibleIds.add(child.id);
-      queue.push(child.id);
-    });
+  const cached = jurisdictionScopeCache.get(jurisdictionId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.ids;
   }
 
-  return Array.from(accessibleIds);
+  const rows = await prisma.$queryRaw`
+    WITH RECURSIVE jurisdiction_scope AS (
+      SELECT id
+      FROM jurisdictions
+      WHERE id = ${jurisdictionId}
+
+      UNION ALL
+
+      SELECT child.id
+      FROM jurisdictions child
+      INNER JOIN jurisdiction_scope parent_scope
+        ON child."parentId" = parent_scope.id
+    )
+    SELECT id FROM jurisdiction_scope
+  `;
+  const ids = rows.map((row) => row.id);
+  jurisdictionScopeCache.set(jurisdictionId, {
+    ids,
+    expiresAt: Date.now() + JURISDICTION_SCOPE_CACHE_TTL_MS
+  });
+
+  return ids;
 };
 
 // Phase 3: Admin Issue Management

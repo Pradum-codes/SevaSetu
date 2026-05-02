@@ -104,10 +104,15 @@ export default function Dashboard({ admin, onLogout }) {
           response = await adminApi.getIssues(filters);
         }
 
-        setIssues(response.issues || []);
-        if (response.issues?.length > 0 && !selectedId) {
-          setSelectedId(response.issues[0].id);
-        }
+        const nextIssues = response.issues || [];
+        setIssues(nextIssues);
+        setSelectedId((currentSelectedId) => {
+          if (nextIssues.length === 0) return null;
+          const selectedIssueStillVisible = nextIssues.some(
+            (issue) => issue.id === currentSelectedId
+          );
+          return selectedIssueStillVisible ? currentSelectedId : nextIssues[0].id;
+        });
       } catch (err) {
         setError(err.message);
       } finally {
@@ -116,7 +121,7 @@ export default function Dashboard({ admin, onLogout }) {
     };
 
     fetchIssues();
-  }, [filters, selectedId, adminRole]);
+  }, [filters, adminRole, admin?.authorityProfile?.jurisdictionId]);
 
   // Fetch timeline when issue is selected
   useEffect(() => {

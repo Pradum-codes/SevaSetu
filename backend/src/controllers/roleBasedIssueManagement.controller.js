@@ -7,8 +7,20 @@ const STATUS_GROUPS = {
   closed: ['closed']
 };
 
+const JURISDICTION_SCOPE_CACHE_TTL_MS = 60 * 1000;
+const jurisdictionScopeCache = new Map();
+const ADMIN_ROLE_CACHE_TTL_MS = 60 * 1000;
+const adminRoleCache = new Map();
+const ADMIN_GET_RESPONSE_CACHE_TTL_MS = 15 * 1000;
+const adminGetResponseCache = new Map();
+
 // Helper: Get admin's role
 const getAdminRole = async (adminId) => {
+  const cached = adminRoleCache.get(adminId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.adminData;
+  }
+
   const admin = await prisma.user.findUnique({
     where: { id: adminId },
     include: {
@@ -23,13 +35,20 @@ const getAdminRole = async (adminId) => {
     }
   });
 
-  return {
+  const adminData = {
     roles: admin?.userRoles?.map(ur => ur.role?.name) || [],
     jurisdiction: admin?.authorityProfile?.jurisdiction,
     department: admin?.authorityProfile?.department,
     designation: admin?.authorityProfile?.designation,
     jurisdictionId: admin?.authorityProfile?.jurisdictionId
   };
+
+  adminRoleCache.set(adminId, {
+    adminData,
+    expiresAt: Date.now() + ADMIN_ROLE_CACHE_TTL_MS
+  });
+
+  return adminData;
 };
 
 const isStateAdmin = (adminData) => {
@@ -50,23 +69,65 @@ const isDepartmentAdmin = (adminData) => {
 
 // Helper: Get jurisdiction scope
 const getAdminJurisdictionScope = async (jurisdictionId) => {
-  const accessibleIds = new Set([jurisdictionId]);
-  const queue = [jurisdictionId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    const children = await prisma.jurisdiction.findMany({
-      where: { parentId: currentId },
-      select: { id: true }
-    });
-
-    children.forEach(child => {
-      accessibleIds.add(child.id);
-      queue.push(child.id);
-    });
+  const cached = jurisdictionScopeCache.get(jurisdictionId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.ids;
   }
 
-  return Array.from(accessibleIds);
+  const rows = await prisma.$queryRaw`
+    WITH RECURSIVE jurisdiction_scope AS (
+      SELECT id
+      FROM jurisdictions
+      WHERE id = ${jurisdictionId}
+
+      UNION ALL
+
+      SELECT child.id
+      FROM jurisdictions child
+      INNER JOIN jurisdiction_scope parent_scope
+        ON child."parentId" = parent_scope.id
+    )
+    SELECT id FROM jurisdiction_scope
+  `;
+  const ids = rows.map((row) => row.id);
+  jurisdictionScopeCache.set(jurisdictionId, {
+    ids,
+    expiresAt: Date.now() + JURISDICTION_SCOPE_CACHE_TTL_MS
+  });
+
+  return ids;
+};
+
+const clearJurisdictionScopeCache = () => {
+  jurisdictionScopeCache.clear();
+};
+
+const clearAdminRoleCache = () => {
+  adminRoleCache.clear();
+};
+
+const getResponseCacheKey = (name, req) => {
+  return `${name}:${req.user?.userId || ''}:${JSON.stringify(req.query || {})}`;
+};
+
+const getCachedResponse = (key) => {
+  const cached = adminGetResponseCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    adminGetResponseCache.delete(key);
+    return null;
+  }
+  return cached.payload;
+};
+
+const setCachedResponse = (key, payload) => {
+  adminGetResponseCache.set(key, {
+    payload,
+    expiresAt: Date.now() + ADMIN_GET_RESPONSE_CACHE_TTL_MS
+  });
+};
+
+const clearAdminGetResponseCache = () => {
+  adminGetResponseCache.clear();
 };
 
 const parsePositiveInt = (value, fallback) => {
@@ -245,6 +306,10 @@ export const stateAdminListIssues = async (req, res) => {
       return res.status(403).json({ error: 'STATE_ADMIN access required' });
     }
 
+    const responseCacheKey = getResponseCacheKey('state-issues', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
+
     let accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
 
     if (districtId) {
@@ -289,7 +354,7 @@ export const stateAdminListIssues = async (req, res) => {
       select: { id: true, name: true }
     });
 
-    return res.json({
+    const payload = {
       issues,
       availableDistricts: districts,
       pagination: {
@@ -300,7 +365,9 @@ export const stateAdminListIssues = async (req, res) => {
       },
       adminRole: 'STATE_ADMIN',
       message: 'State admin can only forward issues to districts'
-    });
+    };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('stateAdminListIssues error:', error);
     return res.status(500).json({ error: 'Failed to fetch issues' });
@@ -371,6 +438,7 @@ export const stateAdminForwardToDistrict = async (req, res) => {
         }
       })
     ]);
+    clearAdminGetResponseCache();
 
     return res.json({
       message: 'Issue forwarded to district successfully',
@@ -393,6 +461,10 @@ export const stateAdminListDistricts = async (req, res) => {
       return res.status(403).json({ error: 'STATE_ADMIN access required' });
     }
 
+    const responseCacheKey = getResponseCacheKey('state-districts', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
+
     const districts = await prisma.jurisdiction.findMany({
       where: {
         type: 'DISTRICT',
@@ -408,7 +480,9 @@ export const stateAdminListDistricts = async (req, res) => {
       orderBy: { name: 'asc' }
     });
 
-    return res.json({ districts });
+    const payload = { districts };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('stateAdminListDistricts error:', error);
     return res.status(500).json({ error: 'Failed to fetch districts' });
@@ -452,6 +526,9 @@ export const stateAdminCreateDistrict = async (req, res) => {
         pincode
       }
     });
+    clearJurisdictionScopeCache();
+    clearAdminRoleCache();
+    clearAdminGetResponseCache();
 
     return res.status(201).json({ district, message: 'District created successfully' });
   } catch (error) {
@@ -471,6 +548,10 @@ export const stateAdminListDistrictHeads = async (req, res) => {
       return res.status(403).json({ error: 'STATE_ADMIN access required' });
     }
 
+    const responseCacheKey = getResponseCacheKey('state-district-heads', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
+
     const districtIds = await getAdminJurisdictionScope(adminData.jurisdictionId);
     const heads = await prisma.user.findMany({
       where: {
@@ -483,7 +564,9 @@ export const stateAdminListDistrictHeads = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    return res.json({ heads });
+    const payload = { heads };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('stateAdminListDistrictHeads error:', error);
     return res.status(500).json({ error: 'Failed to fetch district heads' });
@@ -520,6 +603,8 @@ export const stateAdminCreateDistrictHead = async (req, res) => {
       departmentId: generalDepartment.id,
       designationName: 'District Administrator'
     });
+    clearAdminRoleCache();
+    clearAdminGetResponseCache();
 
     return res.status(201).json({ head, message: 'District head created successfully' });
   } catch (error) {
@@ -543,6 +628,10 @@ export const districtAdminListIssues = async (req, res) => {
     if (!isDistrictAdmin(adminData)) {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
+
+    const responseCacheKey = getResponseCacheKey('district-issues', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
 
     const accessibleJurisdictions = await getAdminJurisdictionScope(adminData.jurisdictionId);
 
@@ -572,7 +661,7 @@ export const districtAdminListIssues = async (req, res) => {
       orderBy: { name: 'asc' }
     });
 
-    return res.json({
+    const payload = {
       issues,
       availableDepartments: departments,
       allStatuses: ['open', 'assigned', 'in_progress', 'forwarded', 'resolved', 'closed'],
@@ -584,7 +673,9 @@ export const districtAdminListIssues = async (req, res) => {
       },
       adminRole: 'DISTRICT_ADMIN',
       message: 'District admin can assign to departments and close after review'
-    });
+    };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('districtAdminListIssues error:', error);
     return res.status(500).json({ error: 'Failed to fetch issues' });
@@ -646,6 +737,7 @@ export const districtAdminAssignToDepartment = async (req, res) => {
         }
       })
     ]);
+    clearAdminGetResponseCache();
 
     return res.json({
       message: 'Issue assigned to department successfully',
@@ -709,6 +801,7 @@ export const districtAdminCloseIssue = async (req, res) => {
         }
       })
     ]);
+    clearAdminGetResponseCache();
 
     return res.json({
       message: 'Issue closed successfully after review',
@@ -731,12 +824,18 @@ export const districtAdminListDepartments = async (req, res) => {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
 
+    const responseCacheKey = getResponseCacheKey('district-departments', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
+
     const departments = await prisma.department.findMany({
       select: { id: true, name: true },
       orderBy: { name: 'asc' }
     });
 
-    return res.json({ departments });
+    const payload = { departments };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('districtAdminListDepartments error:', error);
     return res.status(500).json({ error: 'Failed to fetch departments' });
@@ -760,6 +859,7 @@ export const districtAdminCreateDepartment = async (req, res) => {
     if (existing) return res.status(400).json({ error: 'Department already exists' });
 
     const department = await prisma.department.create({ data: { name } });
+    clearAdminGetResponseCache();
     return res.status(201).json({ department, message: 'Department created successfully' });
   } catch (error) {
     console.error('districtAdminCreateDepartment error:', error);
@@ -781,6 +881,10 @@ export const districtAdminListDepartmentHeads = async (req, res) => {
       return res.status(403).json({ error: 'DISTRICT_ADMIN access required' });
     }
 
+    const responseCacheKey = getResponseCacheKey('district-department-heads', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
+
     const heads = await prisma.user.findMany({
       where: {
         authorityProfile: {
@@ -792,7 +896,9 @@ export const districtAdminListDepartmentHeads = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    return res.json({ heads });
+    const payload = { heads };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('districtAdminListDepartmentHeads error:', error);
     return res.status(500).json({ error: 'Failed to fetch department heads' });
@@ -827,6 +933,8 @@ export const districtAdminCreateDepartmentHead = async (req, res) => {
       departmentId: department.id,
       designationName: 'Department Head'
     });
+    clearAdminRoleCache();
+    clearAdminGetResponseCache();
 
     return res.status(201).json({ head, message: 'Department head created successfully' });
   } catch (error) {
@@ -850,6 +958,10 @@ export const departmentAdminListIssues = async (req, res) => {
     if (!isDepartmentAdmin(adminData)) {
       return res.status(403).json({ error: 'DEPARTMENT_ADMIN access required' });
     }
+
+    const responseCacheKey = getResponseCacheKey('department-issues', req);
+    const cachedResponse = getCachedResponse(responseCacheKey);
+    if (cachedResponse) return res.json(cachedResponse);
 
     const skip = (page - 1) * limit;
     const accessibleJurisdictions = adminData.jurisdictionId
@@ -879,7 +991,7 @@ export const departmentAdminListIssues = async (req, res) => {
       prisma.issue.count({ where })
     ]);
 
-    return res.json({
+    const payload = {
       issues,
       departmentName: adminData.department.name,
       allStatuses: ['assigned', 'in_progress', 'resolved'],
@@ -891,7 +1003,9 @@ export const departmentAdminListIssues = async (req, res) => {
       },
       adminRole: 'DEPARTMENT_ADMIN',
       message: 'Department admin can only view assigned issues and provide proof'
-    });
+    };
+    setCachedResponse(responseCacheKey, payload);
+    return res.json(payload);
   } catch (error) {
     console.error('departmentAdminListIssues error:', error);
     return res.status(500).json({ error: 'Failed to fetch issues' });
@@ -956,6 +1070,7 @@ export const departmentAdminSubmitProof = async (req, res) => {
         }
       })
     ]);
+    clearAdminGetResponseCache();
 
     return res.json({
       message: 'Proof submitted. Issue sent back to district admin for review and closure',
@@ -1029,6 +1144,7 @@ export const departmentAdminUpdateStatus = async (req, res) => {
         }
       })
     ]);
+    clearAdminGetResponseCache();
 
     return res.json({
       message: 'Issue status updated successfully',
