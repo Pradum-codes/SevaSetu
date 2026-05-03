@@ -1,7 +1,10 @@
 package com.example.sevasetu.ui.common
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
@@ -24,8 +28,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,11 +41,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +56,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.utils.TokenManager
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -54,13 +64,21 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun IssueDetailModal(
     issue: IssueDto,
     onDismiss: () -> Unit,
-    onLocationClick: ((lat: Double, lng: Double) -> Unit)? = null
+    onLocationClick: ((lat: Double, lng: Double) -> Unit)? = null,
+    onVoteClick: (() -> Unit)? = null,
+    isVoteLoading: Boolean = false
 ) {
+    val context = LocalContext.current
+    val effectiveIsVotedByMe = remember(issue.isVotedByMe, issue.id) {
+        issue.isVotedByMe ?: TokenManager(context).getVotedIssues().contains(issue.id)
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -80,6 +98,7 @@ fun IssueDetailModal(
             Column(modifier = Modifier.fillMaxSize()) {
                 IssueDetailHeader(
                     title = issue.title.ifBlank { "Untitled issue" },
+                    voteCount = issue.voteCount,
                     onDismiss = onDismiss
                 )
 
@@ -97,6 +116,15 @@ fun IssueDetailModal(
                         StatusBadge(issue.status)
                         PriorityBadge(issue.priority)
                         issue.category?.name?.takeIf { it.isNotBlank() }?.let { CategoryBadge(it) }
+                    }
+
+                    if (onVoteClick != null) {
+                        VoteSection(
+                            voteCount = issue.voteCount,
+                            isVotedByMe = effectiveIsVotedByMe,
+                            isLoading = isVoteLoading,
+                            onVoteClick = onVoteClick
+                        )
                     }
 
                     IssueImages(imageUrls = issue.resolveImageUrls())
@@ -149,6 +177,8 @@ fun IssueDetailModal(
                     DetailSection(title = "Details") {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             DetailRow(label = "Issue ID: ", value = issue.id)
+                            DetailRow(label = "Upvotes: ", value = issue.voteCount.toString())
+                            DetailRow(label = "My Vote: ", value = if (effectiveIsVotedByMe) "Yes" else "No")
                             DetailRow(label = "Created: ", value = formatDate(issue.createdAt))
                             DetailRow(label = "Updated: ", value = formatDate(issue.updatedAt))
                             DetailRow(label = "Status: ", value = issue.status.toDisplayLabel("Unknown"))
@@ -196,6 +226,7 @@ fun IssueDetailModal(
 @Composable
 private fun IssueDetailHeader(
     title: String,
+    voteCount: Int,
     onDismiss: () -> Unit
 ) {
     Row(
@@ -207,12 +238,28 @@ private fun IssueDetailHeader(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Issue Details",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFF00875A),
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Issue Details",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFF00875A),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFE8F5E9)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ThumbUp, contentDescription = null, modifier = Modifier.size(10.dp), tint = Color(0xFF00875A))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(voteCount.toString(), style = MaterialTheme.typography.labelSmall, color = Color(0xFF00875A), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
@@ -262,6 +309,60 @@ private fun IssueImages(imageUrls: List<String>) {
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFF1F4F2)),
                     contentScale = ContentScale.Crop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoteSection(
+    voteCount: Int,
+    isVotedByMe: Boolean,
+    isLoading: Boolean,
+    onVoteClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isVotedByMe) Color(0xFFE8F5E9) else Color(0xFFF8FBF9),
+        border = if (isVotedByMe) BorderStroke(1.dp, Color(0xFFC8E6C9)) else BorderStroke(1.dp, Color(0xFFE1EBE5))
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .clickable(enabled = !isLoading, onClick = onVoteClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Icon(
+                imageVector = if (isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                contentDescription = if (isVotedByMe) "Remove Upvote" else "Upvote",
+                tint = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF5D6B63),
+                modifier = Modifier.size(24.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isVotedByMe) "You upvoted this" else "Upvote this issue",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF17231D),
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = when {
+                        voteCount <= 0 -> "No upvotes yet"
+                        voteCount == 1 -> "1 person upvoted this"
+                        else -> "$voteCount people upvoted this"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isVotedByMe) Color(0xFF00875A).copy(alpha = 0.8f) else Color(0xFF6E7C73)
+                )
+            }
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF5D6B63)
                 )
             }
         }
@@ -413,6 +514,7 @@ private fun formatCoordinate(value: Double?): String {
     return if (value == null) "N/A" else String.format(Locale.US, "%.5f", value)
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 private fun formatDate(dateString: String?): String {
     if (dateString.isNullOrBlank()) return "N/A"
 

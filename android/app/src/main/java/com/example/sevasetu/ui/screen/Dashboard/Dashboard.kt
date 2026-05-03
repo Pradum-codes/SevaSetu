@@ -4,9 +4,11 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
 import android.Manifest
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import com.google.android.gms.location.LocationServices
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -77,6 +80,7 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import com.example.sevasetu.ui.screen.Reports.IssueReport
 
 class Dashboard : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -88,6 +92,7 @@ class Dashboard : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen() {
@@ -98,6 +103,53 @@ fun DashboardScreen() {
     var dashboardUiState by remember { mutableStateOf<DashboardUiState>(DashboardUiState.Loading) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
+    var voteInFlight by remember { mutableStateOf(false) }
+
+    val handleVote: (IssueDto) -> Unit = { issue ->
+        if (!voteInFlight) {
+            voteInFlight = true
+            scope.launch {
+                issueRepository.voteIssue(issue.id)
+                    .onSuccess { response ->
+                        // Update local vote tracker
+                        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                        if (response.voted) {
+                            tokenManager.addVotedIssue(issue.id)
+                        } else {
+                            tokenManager.removeVotedIssue(issue.id)
+                        }
+
+                        // Update selectedIssue to reflect changes in modal
+                        if (selectedIssue?.id == issue.id) {
+                            selectedIssue = selectedIssue?.copy(
+                                voteCount = response.totalVotes,
+                                isVotedByMe = response.voted
+                            )
+                        }
+
+                        // Also update it in the map lists
+                        if (mapUiState is MapUiState.Success) {
+                            val success = mapUiState as MapUiState.Success
+                            val updatedFullIssues = success.fullIssues.map {
+                                if (it.id == issue.id) it.copy(
+                                    voteCount = response.totalVotes,
+                                    isVotedByMe = response.voted
+                                ) else it
+                            }
+                            mapUiState = success.copy(fullIssues = updatedFullIssues)
+                        }
+                    }
+                    .onFailure {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Failed to update vote: ${it.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                voteInFlight = false
+            }
+        }
+    }
 
     // Get user's district from TokenManager
     val userDistrictId = remember {
@@ -161,7 +213,7 @@ fun DashboardScreen() {
             } else {
                 callback(null)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             callback(null)
         }
     }
@@ -181,7 +233,13 @@ fun DashboardScreen() {
                         districtId = userDistrictId
                     )
                         .onSuccess { response ->
-                            val mapIssues = response.issues.mapNotNull { it.toMapIssue() }
+                            val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                            val votedSet = tokenManager.getVotedIssues()
+                            val enrichedIssues = response.issues.map {
+                                it.copy(isVotedByMe = it.isVotedByMe ?: votedSet.contains(it.id))
+                            }
+                            
+                            val mapIssues = enrichedIssues.mapNotNull { it.toMapIssue() }
                             val searchMode = response.searchMode
                             val displayInfo = when {
                                 searchMode == "location" && response.location != null -> {
@@ -196,7 +254,7 @@ fun DashboardScreen() {
                                 mapIssues,
                                 displayInfo,
                                 searchMode,
-                                response.issues
+                                enrichedIssues
                             )
                         }
                         .onFailure { throwable ->
@@ -481,7 +539,9 @@ fun DashboardScreen() {
     if (selectedIssue != null) {
         IssueDetailModal(
             issue = selectedIssue!!,
-            onDismiss = { selectedIssue = null }
+            onDismiss = { selectedIssue = null },
+            onVoteClick = { handleVote(selectedIssue!!) },
+            isVoteLoading = voteInFlight
         )
     }
 
@@ -768,6 +828,8 @@ private fun NearbyIssuesListSection(
                     status = status,
                     statusColor = statusContainerColor,
                     statusTextColor = statusTextColor,
+                    voteCount = fullIssue?.voteCount ?: 0,
+                    isVotedByMe = fullIssue?.isVotedByMe == true,
                     onClick = { fullIssue?.let { onIssueClick(it) } }
                 )
 
@@ -1133,6 +1195,8 @@ fun IssueCard(
     status: String,
     statusColor: Color,
     statusTextColor: Color,
+    voteCount: Int = 0,
+    isVotedByMe: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     Card(
@@ -1167,6 +1231,7 @@ fun IssueCard(
                     }
                 }
                 
+                // Status Badge
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
                     shape = RoundedCornerShape(12.dp),
@@ -1179,6 +1244,32 @@ fun IssueCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                // Vote Count Badge
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isVotedByMe) Color(0xFFE8F5E9) else Color.Black.copy(alpha = 0.6f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            if (isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = if (isVotedByMe) Color(0xFF00875A) else Color.White
+                        )
+                        Text(
+                            text = voteCount.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isVotedByMe) Color(0xFF00875A) else Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -1222,6 +1313,7 @@ fun Icon(imageVector: ImageVector, contentDescription: String?, size: androidx.c
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun DashboardPreview() {

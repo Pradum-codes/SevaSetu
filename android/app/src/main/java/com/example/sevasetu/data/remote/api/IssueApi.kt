@@ -5,10 +5,12 @@ import com.example.sevasetu.data.remote.dto.CreateIssueResponse
 import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
+import com.example.sevasetu.data.remote.dto.VoteResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface IssueApi {
@@ -34,6 +36,11 @@ interface IssueApi {
     suspend fun createIssue(
         @Body request: CreateIssueRequest
     ): Response<CreateIssueResponse>
+
+    @POST("/issues/{issueId}/vote")
+    suspend fun voteIssue(
+        @Path("issueId") issueId: String
+    ): Response<VoteResponse>
 
     @GET("/dashboard")
     suspend fun getDashboard(

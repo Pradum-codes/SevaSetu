@@ -6,11 +6,23 @@ import com.example.sevasetu.data.remote.dto.CreateIssueResponse
 import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
+import com.example.sevasetu.data.remote.dto.VoteResponse
 import org.json.JSONObject
 
 class IssueRepository(
     private val issueApi: IssueApi
 ) {
+    suspend fun voteIssue(issueId: String): Result<VoteResponse> {
+        return runCatching {
+            val response = issueApi.voteIssue(issueId)
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Failed to vote for issue (${response.code()})")
+            }
+            requireNotNull(response.body()) { "vote response body is null" }
+        }
+    }
+
     suspend fun getNearbyIssues(
         lat: Double? = null,
         lng: Double? = null,

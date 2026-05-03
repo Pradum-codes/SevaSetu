@@ -1,10 +1,12 @@
 package com.example.sevasetu.ui.screen.Reports
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +61,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 class ReportScreen : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -69,6 +73,7 @@ class ReportScreen : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyReportsScreen() {
@@ -80,6 +85,52 @@ fun MyReportsScreen() {
     var selectedFilter by rememberSaveable { mutableStateOf(ReportStatusFilter.ALL) }
     var uiState by remember { mutableStateOf(ReportsUiState(isLoading = true)) }
     var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
+    var voteInFlight by remember { mutableStateOf(false) }
+
+    val handleVote: (IssueDto) -> Unit = { issue ->
+        if (!voteInFlight) {
+            voteInFlight = true
+            scope.launch {
+                issueRepository.voteIssue(issue.id)
+                    .onSuccess { response ->
+                        // Update local vote tracker
+                        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                        if (response.voted) {
+                            tokenManager.addVotedIssue(issue.id)
+                        } else {
+                            tokenManager.removeVotedIssue(issue.id)
+                        }
+
+                        if (selectedIssue?.id == issue.id) {
+                            selectedIssue = selectedIssue?.copy(
+                                voteCount = response.totalVotes,
+                                isVotedByMe = response.voted
+                            )
+                        }
+
+                        // Update in uiState lists
+                        val updatedFullIssues = uiState.fullIssues.map {
+                            if (it.id == issue.id) it.copy(
+                                voteCount = response.totalVotes,
+                                isVotedByMe = response.voted
+                            ) else it
+                        }
+                        uiState = uiState.copy(
+                            fullIssues = updatedFullIssues,
+                            reports = updatedFullIssues.map { it.toReportListItem() }
+                        )
+                    }
+                    .onFailure {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Failed to update vote: ${it.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                voteInFlight = false
+            }
+        }
+    }
 
     val refreshReports: () -> Unit = {
         if (isPreview) {
@@ -94,10 +145,16 @@ fun MyReportsScreen() {
                 )
 
                 result.onSuccess { response ->
+                    val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                    val votedSet = tokenManager.getVotedIssues()
+                    val enrichedIssues = response.issues.map {
+                        it.copy(isVotedByMe = it.isVotedByMe ?: votedSet.contains(it.id))
+                    }
+
                     uiState = ReportsUiState(
                         isLoading = false,
-                        reports = response.issues.map { it.toReportListItem() },
-                        fullIssues = response.issues
+                        reports = enrichedIssues.map { it.toReportListItem() },
+                        fullIssues = enrichedIssues
                     )
                 }.onFailure { throwable ->
                     uiState = ReportsUiState(
@@ -400,7 +457,9 @@ fun MyReportsScreen() {
     if (selectedIssue != null) {
         IssueDetailModal(
             issue = selectedIssue!!,
-            onDismiss = { selectedIssue = null }
+            onDismiss = { selectedIssue = null },
+            onVoteClick = { handleVote(selectedIssue!!) },
+            isVoteLoading = voteInFlight
         )
     }
 }
@@ -426,7 +485,9 @@ private data class ReportListItem(
     val reportedDateLabel: String,
     val statusLabel: String,
     val statusRaw: String,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val voteCount: Int,
+    val isVotedByMe: Boolean
 )
 
 @Composable
@@ -505,6 +566,24 @@ private fun ReportIssueCard(
                 }
             }
 
+            // Vote Count in Reports List
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    if (report.isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                    contentDescription = null,
+                    tint = if (report.isVotedByMe) Color(0xFF00875A) else Color.LightGray,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = report.voteCount.toString(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (report.isVotedByMe) Color(0xFF00875A) else Color.Gray
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
@@ -533,7 +612,9 @@ private fun IssueDto.toReportListItem(): ReportListItem {
         reportedDateLabel = createdAt.toReportDateLabel(),
         statusLabel = normalizedStatus.replace('_', ' '),
         statusRaw = normalizedStatus,
-        imageUrl = resolvePreviewImageUrl()
+        imageUrl = resolvePreviewImageUrl(),
+        voteCount = voteCount,
+        isVotedByMe = isVotedByMe == true
     )
 }
 
@@ -576,7 +657,9 @@ private fun previewReports(): List<ReportListItem> {
             reportedDateLabel = "24 Oct, 2023",
             statusLabel = "OPEN",
             statusRaw = "OPEN",
-            imageUrl = null
+            imageUrl = null,
+            voteCount = 5,
+            isVotedByMe = false
         ),
         ReportListItem(
             id = "2",
@@ -584,11 +667,14 @@ private fun previewReports(): List<ReportListItem> {
             reportedDateLabel = "12 Oct, 2023",
             statusLabel = "RESOLVED",
             statusRaw = "RESOLVED",
-            imageUrl = null
+            imageUrl = null,
+            voteCount = 10,
+            isVotedByMe = true
         )
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun MyReportsScreenPreview() {

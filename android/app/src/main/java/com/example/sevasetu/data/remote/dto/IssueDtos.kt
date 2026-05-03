@@ -69,7 +69,14 @@ data class IssueDto(
     @SerializedName("priority") val priority: String?,
     @SerializedName("images") val images: List<IssueImageDto> = emptyList(),
     @SerializedName("imageUrls") val imageUrls: List<String>? = null,
-    @SerializedName("imageUrl") val imageUrl: String?
+    @SerializedName("imageUrl") val imageUrl: String?,
+    @SerializedName("voteCount") val voteCount: Int = 0,
+    @SerializedName("isVotedByMe") val isVotedByMe: Boolean? = null
+)
+
+data class VoteResponse(
+    @SerializedName("voted") val voted: Boolean,
+    @SerializedName("totalVotes") val totalVotes: Int
 )
 
 data class IssueCategoryDto(
