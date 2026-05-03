@@ -31,6 +31,11 @@ const issueSelect = {
       createdAt: true
     },
     orderBy: { createdAt: 'asc' }
+  },
+  _count: {
+    select: {
+      votes: true
+    }
   }
 };
 
@@ -171,6 +176,52 @@ export const findJurisdictionsByParentIds = async (parentIds) => {
       type: true,
       category: true,
       name: true
+    }
+  });
+};
+
+// --- Vote related operations ---
+
+export const findVote = async ({ userId, issueId }) => {
+  return prisma.vote.findUnique({
+    where: {
+      userId_issueId: {
+        userId,
+        issueId
+      }
+    }
+  });
+};
+
+export const createVote = async ({ userId, issueId }) => {
+  return prisma.vote.create({
+    data: {
+      userId,
+      issueId
+    }
+  });
+};
+
+export const countVotesByIssue = async (issueId) => {
+  return prisma.vote.count({
+    where: { issueId }
+  });
+};
+
+export const findIssueById = async (id) => {
+  return prisma.issue.findUnique({
+    where: { id },
+    select: { id: true } // lightweight existence check
+  });
+};
+
+export const deleteVote = async ({ userId, issueId }) => {
+  return prisma.vote.delete({
+    where: {
+      userId_issueId: {
+        userId,
+        issueId
+      }
     }
   });
 };

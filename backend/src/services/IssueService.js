@@ -5,7 +5,12 @@ import {
   findIssueTimelineById,
   findIssues,
   findJurisdictionById,
-  findJurisdictionsByParentIds
+  findJurisdictionsByParentIds,
+  findVote,
+  createVote,
+  deleteVote,
+  countVotesByIssue,
+  findIssueById
 } from '../repositories/IssueRepository.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -133,6 +138,16 @@ const parseOptionalDate = (value) => {
     throw new IssueServiceError('lastSync must be a valid ISO date');
   }
   return date;
+};
+
+const mapIssueVoteCount = (issue) => {
+  if (!issue) return issue;
+  const voteCount = issue?._count?.votes ?? 0;
+  const { _count, ...rest } = issue;
+  return {
+    ...rest,
+    voteCount
+  };
 };
 
 const parseBbox = (bbox) => {
@@ -382,7 +397,7 @@ export const createIssue = async ({ payload, userId }) => {
     }
 
     return {
-      issue: existingIssue,
+      issue: mapIssueVoteCount(existingIssue),
       created: false
     };
   }
@@ -428,7 +443,7 @@ export const createIssue = async ({ payload, userId }) => {
   });
 
   return {
-    issue,
+    issue: mapIssueVoteCount(issue),
     created: true
   };
 };
@@ -448,7 +463,7 @@ export const listIssues = async ({ query }) => {
     orderBy: { createdAt: 'desc' }
   });
 
-  return { issues, page, limit };
+  return { issues: issues.map(mapIssueVoteCount), page, limit };
 };
 
 export const syncIssues = async ({ query }) => {
@@ -482,8 +497,8 @@ export const syncIssues = async ({ query }) => {
   });
 
   return {
-    new: newIssues,
-    updated: updatedIssues,
+    new: newIssues.map(mapIssueVoteCount),
+    updated: updatedIssues.map(mapIssueVoteCount),
     deleted: []
   };
 };
@@ -537,7 +552,7 @@ export const listNearbyIssuesByDistrict = async ({ query }) => {
       },
       page,
       limit,
-      issues
+      issues: issues.map(mapIssueVoteCount)
     };
   }
 
@@ -570,7 +585,7 @@ export const listNearbyIssuesByDistrict = async ({ query }) => {
     },
     page,
     limit,
-    issues
+    issues: issues.map(mapIssueVoteCount)
   };
 };
 
@@ -594,7 +609,7 @@ export const listUserReports = async ({ userId, query }) => {
     orderBy: { createdAt: 'desc' }
   });
 
-  return { page, limit, issues };
+  return { page, limit, issues: issues.map(mapIssueVoteCount) };
 };
 
 export const getIssueTimeline = async ({ issueId }) => {
@@ -627,5 +642,47 @@ export const getIssueTimeline = async ({ issueId }) => {
   return {
     issueId: issue.id,
     timeline
+  };
+};
+
+export const toggleVoteIssue = async ({ issueId, userId }) => {
+  const parsedIssueId = parseIssueId(issueId);
+
+  if (!userId) {
+    throw new IssueServiceError('Authentication required', 401);
+  }
+
+  const issue = await findIssueById(parsedIssueId);
+  if (!issue) {
+    throw new IssueServiceError('Issue not found', 404);
+  }
+
+  const existingVote = await findVote({
+    userId,
+    issueId: parsedIssueId
+  });
+
+  if (existingVote) {
+    await deleteVote({
+      userId,
+      issueId: parsedIssueId
+    });
+
+    return {
+      voted: false,
+      message: 'Vote removed',
+      totalVotes: await countVotesByIssue(parsedIssueId)
+    };
+  }
+
+  await createVote({
+    userId,
+    issueId: parsedIssueId
+  });
+
+  return {
+    voted: true,
+    message: 'Upvoted successfully',
+    totalVotes: await countVotesByIssue(parsedIssueId)
   };
 };

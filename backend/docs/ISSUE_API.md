@@ -22,6 +22,8 @@ These endpoints require JWT:
 
 - `POST /issues`
 - `GET /issues/sync`
+- `GET /issues/reports`
+- `POST /issues/:issueId/vote`
 
 Header format:
 
@@ -127,6 +129,7 @@ Rural example:
     "lng": 77.4126,
     "status": "OPEN",
     "priority": "NORMAL",
+    "voteCount": 0,
     "departmentId": null,
     "jurisdictionId": "required-jurisdiction-uuid",
     "category": {
@@ -166,6 +169,7 @@ Rural example:
     "lng": 77.4126,
     "status": "OPEN",
     "priority": "NORMAL",
+    "voteCount": 0,
     "departmentId": null,
     "jurisdictionId": "required-jurisdiction-uuid",
     "category": {
@@ -234,6 +238,7 @@ GET /issues?page=1&limit=20&status=open&bbox=23.0,77.0,23.5,77.7
       "lng": 77.4126,
       "status": "OPEN",
       "priority": "NORMAL",
+      "voteCount": 13,
       "departmentId": null,
       "jurisdictionId": "required-jurisdiction-uuid",
       "category": { "id": 2, "name": "Garbage" },
@@ -291,6 +296,7 @@ GET /issues/sync?lastSync=2026-04-20T08:00:00.000Z&bbox=23.0,77.0,23.5,77.7
       "lng": 77.41,
       "status": "OPEN",
       "priority": "NORMAL",
+      "voteCount": 2,
       "departmentId": null,
       "jurisdictionId": "required-jurisdiction-uuid",
       "category": { "id": 4, "name": "Electricity" },
@@ -314,6 +320,7 @@ GET /issues/sync?lastSync=2026-04-20T08:00:00.000Z&bbox=23.0,77.0,23.5,77.7
       "lng": 77.43,
       "status": "IN_PROGRESS",
       "priority": "HIGH",
+      "voteCount": 8,
       "departmentId": null,
       "jurisdictionId": "required-jurisdiction-uuid",
       "category": { "id": 3, "name": "Water" },
@@ -457,3 +464,53 @@ Note:
 - Use device-generated UUID as `clientId` for each locally created issue.
 - Retrying `POST /issues` with same `clientId` is safe and won’t create duplicates for same user.
 - Use `GET /issues/sync?lastSync=...` for incremental pull into local DB.
+
+
+## 6. Upvote / Remove Vote (Toggle)
+- **Method:** `POST`
+- **Path:** `/issues/:issueId/vote`
+- **Auth:** Required
+- **Description:** Toggles vote for the authenticated user on a given issue.
+If the user has not voted → creates a vote
+If the user has already voted → removes the vote
+
+### Path params
+- `issueId` (required): positive integer ID of the issue
+
+### Example:
+
+```http
+POST /issues/101/vote
+Authorization: Bearer <jwt_token>
+```
+
+### Behavior
+- Each user can have at most one vote per issue
+- Endpoint is toggle-based
+- Response always returns:
+- current vote state (`voted`)
+- updated total vote count (`totalVotes`)
+- success response (`200`)
+
+#### Case 1: Vote added
+```json
+{
+  "voted": true,
+  "message": "Upvoted successfully",
+  "totalVotes": 13
+}
+```
+#### Case 2: Vote removed
+```json
+{
+  "voted": false,
+  "message": "Vote removed",
+  "totalVotes": 12
+}
+```
+
+### Possible error responses
+- `400`: Invalid issueId (not a positive integer)
+- `401`: Missing/invalid auth token
+- `404`: Issue not found
+- `500`: Internal server error

@@ -5,7 +5,8 @@ import {
   getIssueTimeline as getIssueTimelineService,
   listUserReports,
   listIssues as listIssuesService,
-  syncIssues as syncIssuesService
+  syncIssues as syncIssuesService,
+  toggleVoteIssue as toggleVoteIssueService
 } from '../services/IssueService.js';
 
 const handleIssueError = (error, res) => {
@@ -82,6 +83,25 @@ export const getMyReports = async (req, res) => {
       userId,
       query: req.query
     });
+    return res.json(payload);
+  } catch (error) {
+    return handleIssueError(error, res);
+  }
+};
+
+export const toggleVoteIssue = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+        console.log('HIT toggleVoteIssue');
+        return res.sendStatus(401);
+    }
+
+    const payload = await toggleVoteIssueService({
+      issueId: req.params.issueId,
+      userId
+    });
+
     return res.json(payload);
   } catch (error) {
     return handleIssueError(error, res);

@@ -7,13 +7,15 @@ import {
   getIssueTimeline,
   getIssues,
   getMyReports,
-  getNearbyIssues
+  getNearbyIssues,
+  toggleVoteIssue
 } from '../controllers/issue.controller.js';
 
 const router = Router();
 
 router.get('/nearby', getNearbyIssues);
 router.get('/reports', authMiddleware, getMyReports);
+router.post('/:issueId/vote', authMiddleware, toggleVoteIssue);
 router.get('/:issueId/timeline', getIssueTimeline);
 router.get('/', getIssues);
 router.get('/sync', authMiddleware, getIssueSync);
