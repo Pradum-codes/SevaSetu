@@ -79,6 +79,23 @@ data class VoteResponse(
     @SerializedName("totalVotes") val totalVotes: Int
 )
 
+data class IssueTimelineResponse(
+    @SerializedName("issueId") val issueId: String,
+    @SerializedName("timeline") val timeline: List<TimelineUpdateDto>
+)
+
+data class TimelineUpdateDto(
+    @SerializedName("type") val type: String,
+    @SerializedName("remarks") val remarks: String?,
+    @SerializedName("fromDepartment") val fromDepartment: String?,
+    @SerializedName("toDepartment") val toDepartment: String?,
+    @SerializedName("oldStatus") val oldStatus: String?,
+    @SerializedName("newStatus") val newStatus: String?,
+    @SerializedName("proofImageUrl") val proofImageUrl: String?,
+    @SerializedName("actor") val actor: String?,
+    @SerializedName("createdAt") val createdAt: String?
+)
+
 data class IssueCategoryDto(
     @SerializedName("id") val id: Int,
     @SerializedName("name") val name: String

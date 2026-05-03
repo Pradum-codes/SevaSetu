@@ -5,6 +5,7 @@ import com.example.sevasetu.data.remote.dto.CreateIssueResponse
 import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
+import com.example.sevasetu.data.remote.dto.IssueTimelineResponse
 import com.example.sevasetu.data.remote.dto.VoteResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -41,6 +42,11 @@ interface IssueApi {
     suspend fun voteIssue(
         @Path("issueId") issueId: String
     ): Response<VoteResponse>
+
+    @GET("/issues/{issueId}/timeline")
+    suspend fun getIssueTimeline(
+        @Path("issueId") issueId: String
+    ): Response<IssueTimelineResponse>
 
     @GET("/dashboard")
     suspend fun getDashboard(

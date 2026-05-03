@@ -49,6 +49,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.example.sevasetu.Dashboard
 import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
@@ -86,6 +87,24 @@ fun MyReportsScreen() {
     var uiState by remember { mutableStateOf(ReportsUiState(isLoading = true)) }
     var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
     var voteInFlight by remember { mutableStateOf(false) }
+    var selectedIssueTimeline by remember { mutableStateOf<List<TimelineUpdateDto>?>(null) }
+    var isTimelineLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedIssue?.id) {
+        val issueId = selectedIssue?.id
+        if (issueId != null) {
+            isTimelineLoading = true
+            selectedIssueTimeline = null
+            issueRepository.getIssueTimeline(issueId)
+                .onSuccess { response ->
+                    selectedIssueTimeline = response.timeline
+                }
+                .onFailure {
+                    // Fail silently
+                }
+            isTimelineLoading = false
+        }
+    }
 
     val handleVote: (IssueDto) -> Unit = { issue ->
         if (!voteInFlight) {
@@ -459,7 +478,9 @@ fun MyReportsScreen() {
             issue = selectedIssue!!,
             onDismiss = { selectedIssue = null },
             onVoteClick = { handleVote(selectedIssue!!) },
-            isVoteLoading = voteInFlight
+            isVoteLoading = voteInFlight,
+            timeline = selectedIssueTimeline,
+            isTimelineLoading = isTimelineLoading
         )
     }
 }

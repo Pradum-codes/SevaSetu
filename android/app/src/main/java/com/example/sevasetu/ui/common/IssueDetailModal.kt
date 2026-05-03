@@ -1,5 +1,6 @@
 package com.example.sevasetu.ui.common
 
+import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
@@ -25,9 +26,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Button
@@ -49,13 +55,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.example.sevasetu.data.remote.dto.IssueDto
+import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.utils.TokenManager
 import java.time.Instant
 import java.time.LocalDateTime
@@ -72,7 +81,9 @@ fun IssueDetailModal(
     onDismiss: () -> Unit,
     onLocationClick: ((lat: Double, lng: Double) -> Unit)? = null,
     onVoteClick: (() -> Unit)? = null,
-    isVoteLoading: Boolean = false
+    isVoteLoading: Boolean = false,
+    timeline: List<TimelineUpdateDto>? = null,
+    isTimelineLoading: Boolean = false
 ) {
     val context = LocalContext.current
     val effectiveIsVotedByMe = remember(issue.isVotedByMe, issue.id) {
@@ -128,6 +139,11 @@ fun IssueDetailModal(
                     }
 
                     IssueImages(imageUrls = issue.resolveImageUrls())
+
+                    TimelineSection(
+                        timeline = timeline,
+                        isLoading = isTimelineLoading
+                    )
 
                     DetailSection(title = "Description") {
                         Text(
@@ -369,6 +385,158 @@ private fun VoteSection(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+private fun TimelineSection(
+    timeline: List<TimelineUpdateDto>?,
+    isLoading: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionTitle("Activity Timeline")
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFFF8FBF9),
+            border = BorderStroke(1.dp, Color(0xFFE1EBE5))
+        ) {
+            Box(modifier = Modifier.padding(14.dp)) {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color(0xFF00875A))
+                    }
+                } else if (timeline.isNullOrEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF9AA79F), modifier = Modifier.size(18.dp))
+                        Text("No timeline updates available", color = Color(0xFF6E7C73), fontSize = 13.sp)
+                    }
+                } else {
+                    Column {
+                        timeline.forEachIndexed { index, update ->
+                            TimelineItem(
+                                update = update,
+                                isLast = index == timeline.lastIndex
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(24.dp)
+        ) {
+            val icon = when (update.type.uppercase(Locale.ROOT)) {
+                "CREATED" -> Icons.Default.RadioButtonChecked
+                "RESOLVED", "CLOSED", "CLOSED_WITH_PROOF" -> Icons.Default.CheckCircle
+                else -> Icons.Default.Info
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF00875A),
+                modifier = Modifier.size(16.dp)
+            )
+            if (!isLast) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(48.dp)
+                        .background(Color(0xFFE1EBE5))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.padding(bottom = if (isLast) 0.dp else 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = update.type.toDisplayLabel("Update"),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF17231D),
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = formatDate(update.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF6E7C73)
+                )
+            }
+            if (!update.remarks.isNullOrBlank()) {
+                Text(
+                    text = update.remarks,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF34423A),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            if (!update.proofImageUrl.isNullOrBlank()) {
+                val context = LocalContext.current
+                Row(
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clickable {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, update.proofImageUrl.toUri())
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                            }
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Proof Submitted -",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF34423A)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color(0xFF00875A)
+                    )
+                    Text(
+                        text = "Click to view",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF00875A),
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
+            }
+            if (!update.actor.isNullOrBlank() || !update.toDepartment.isNullOrBlank()) {
+                val actorInfo = buildString {
+                    if (!update.actor.isNullOrBlank()) append(update.actor)
+                    if (!update.toDepartment.isNullOrBlank()) {
+                        if (isNotEmpty()) append(" • ")
+                        append(update.toDepartment)
+                    }
+                }
+                Text(
+                    text = actorInfo,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF00875A),
+                    modifier = Modifier.padding(top = 4.dp),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DetailSection(
     title: String,
@@ -518,7 +686,7 @@ private fun formatCoordinate(value: Double?): String {
 private fun formatDate(dateString: String?): String {
     if (dateString.isNullOrBlank()) return "N/A"
 
-    val outputFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.US)
+    val outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yy, hh:mm a", Locale.US)
         .withZone(ZoneId.systemDefault())
 
     return try {

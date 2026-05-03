@@ -6,6 +6,7 @@ import com.example.sevasetu.data.remote.dto.CreateIssueResponse
 import com.example.sevasetu.data.remote.dto.DashboardResponse
 import com.example.sevasetu.data.remote.dto.NearbyIssuesResponse
 import com.example.sevasetu.data.remote.dto.ReportsIssuesResponse
+import com.example.sevasetu.data.remote.dto.IssueTimelineResponse
 import com.example.sevasetu.data.remote.dto.VoteResponse
 import org.json.JSONObject
 
@@ -20,6 +21,17 @@ class IssueRepository(
                 throw IllegalStateException(message ?: "Failed to vote for issue (${response.code()})")
             }
             requireNotNull(response.body()) { "vote response body is null" }
+        }
+    }
+
+    suspend fun getIssueTimeline(issueId: String): Result<IssueTimelineResponse> {
+        return runCatching {
+            val response = issueApi.getIssueTimeline(issueId)
+            if (!response.isSuccessful) {
+                val message = extractErrorMessage(response.errorBody()?.string())
+                throw IllegalStateException(message ?: "Failed to fetch timeline (${response.code()})")
+            }
+            requireNotNull(response.body()) { "timeline response body is null" }
         }
     }
 
