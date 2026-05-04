@@ -419,11 +419,13 @@ District fallback mode:
 - `page` (optional, default `1`)
 - `limit` (optional, default `50`, max `100`)
 - `status` (optional: `OPEN`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`)
+- `fromDate` (optional, ISO date; filters by `createdAt >= fromDate`)
+- `toDate` (optional, ISO date; filters by `createdAt <= toDate`)
 
 Example:
 
 ```http
-GET /issues/reports?page=1&limit=20
+GET /issues/reports?page=1&limit=20&status=resolved&fromDate=2026-05-01T00:00:00.000Z&toDate=2026-05-04T23:59:59.999Z
 Authorization: Bearer <jwt_token>
 ```
 
@@ -436,6 +438,13 @@ Authorization: Bearer <jwt_token>
   "issues": []
 }
 ```
+
+### Possible error responses
+
+- `400`: Invalid `fromDate`/`toDate` format or `fromDate > toDate`
+- `401`: Missing token
+- `403`: Invalid/expired token
+- `500`: Internal server error
 
 ---
 

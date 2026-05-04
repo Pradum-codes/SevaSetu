@@ -193,6 +193,294 @@ Middleware behavior:
 
 ---
 
+## User Profile APIs
+
+### 4. Get Current User Profile
+- **Method:** `GET`
+- **Path:** `/users/me`
+- **Auth:** Required
+- **Description:** Returns profile data required to render profile screen on load, including name, profile image URL, jurisdiction and district details.
+
+Success response (`200`):
+```json
+{
+  "user": {
+    "id": "user-uuid",
+    "name": "Citizen User",
+    "email": "citizen@example.com",
+    "phone": "9876543210",
+    "gender": "Male",
+    "profileImageUrl": "https://example.com/profile.jpg",
+    "district": {
+      "id": "district-uuid",
+      "name": "New Delhi"
+    },
+    "jurisdiction": {
+      "id": "ward-uuid",
+      "name": "Ward 12",
+      "type": "WARD"
+    },
+    "address": {
+      "addressAreaType": "URBAN",
+      "addressDistrict": "New Delhi",
+      "addressCityOrPanchayat": "Karol Bagh",
+      "addressWard": "Ward 12",
+      "addressLocality": "Ajmal Khan Road",
+      "addressLandmark": "Near Metro Gate 3",
+      "addressText": "Ajmal Khan Road, Ward 12, New Delhi",
+      "pinCode": "110005",
+      "addressLat": 28.6519,
+      "addressLng": 77.1909
+    },
+    "jurisdictionIds": {
+      "districtId": "district-uuid",
+      "cityOrPanchayatId": "city-or-panchayat-uuid",
+      "wardId": "ward-uuid",
+      "jurisdictionId": "ward-uuid"
+    },
+    "registrationStatus": {
+      "onboardingCompleted": true,
+      "profileCompleted": true,
+      "locationCaptured": true
+    }
+  }
+}
+```
+
+Possible error responses:
+- `401`: Missing auth token
+- `403`: Invalid/expired token
+- `404`: User not found
+
+---
+
+### 5. Update Current User Profile
+- **Method:** `PATCH`
+- **Path:** `/users/me`
+- **Auth:** Required
+- **Description:** Updates editable account settings fields. Immutable fields are rejected.
+
+Editable fields:
+- `phone`
+- `gender`
+- `addressAreaType` (`URBAN`/`RURAL`)
+- Jurisdiction hierarchy IDs (preferred):
+- `districtId`
+- `cityId` (URBAN only)
+- `wardId` (URBAN only)
+- `blockId` (RURAL only)
+- `panchayatId` (RURAL only)
+- `jurisdictionId` (optional direct override, backward compatibility)
+- `addressDistrict`
+- `addressCityOrPanchayat`
+- `addressWard`
+- `addressLocality`
+- `addressLandmark`
+- `addressText`
+- `pinCode`
+- `addressLat`
+- `addressLng`
+- `profileImageUrl`
+
+Immutable fields (cannot be updated):
+- `name`
+- `email`
+- `idType`
+- `idNumber`
+- `aadhaarNumber`
+
+Request example:
+```json
+{
+  "phone": "9990011223",
+  "addressAreaType": "URBAN",
+  "districtId": "20000001-0000-0000-0000-000000000000",
+  "cityId": "20000001-1000-0000-0000-000000000000",
+  "wardId": "20000001-1110-0000-0000-000000000000",
+  "addressLocality": "Block A",
+  "addressLandmark": "Near Park",
+  "addressText": "Block A, Ward 14, Karol Bagh",
+  "pinCode": "110005",
+  "addressLat": 28.6521,
+  "addressLng": 77.1912,
+  "profileImageUrl": "https://example.com/new-profile.jpg"
+}
+```
+
+Success response (`200`):
+```json
+{
+  "message": "Profile updated successfully",
+  "user": {
+    "id": "user-uuid",
+    "name": "Citizen User",
+    "email": "citizen@example.com",
+    "phone": "9990011223",
+    "gender": "Male",
+    "profileImageUrl": "https://example.com/new-profile.jpg",
+    "district": {
+      "id": "district-uuid",
+      "name": "New Delhi"
+    },
+    "jurisdiction": {
+      "id": "ward-uuid",
+      "name": "Ward 14",
+      "type": "WARD"
+    },
+    "address": {
+      "addressAreaType": "URBAN",
+      "addressDistrict": "20000001-0000-0000-0000-000000000000",
+      "addressCityOrPanchayat": "20000001-1000-0000-0000-000000000000",
+      "addressWard": "20000001-1110-0000-0000-000000000000",
+      "addressLocality": "Block A",
+      "addressLandmark": "Near Park",
+      "addressText": "Block A, Ward 14, Karol Bagh",
+      "pinCode": "110005",
+      "addressLat": 28.6521,
+      "addressLng": 77.1912
+    },
+    "jurisdictionIds": {
+      "districtId": "20000001-0000-0000-0000-000000000000",
+      "cityOrPanchayatId": "20000001-1000-0000-0000-000000000000",
+      "wardId": "20000001-1110-0000-0000-000000000000",
+      "jurisdictionId": "20000001-1110-0000-0000-000000000000"
+    },
+    "registrationStatus": {
+      "onboardingCompleted": true,
+      "profileCompleted": true,
+      "locationCaptured": true
+    }
+  }
+}
+```
+
+Validation error response (`400`) example:
+```json
+{
+  "error": "Validation failed",
+  "details": [
+    "name cannot be updated",
+    "addressAreaType must be URBAN or RURAL"
+  ]
+}
+```
+
+Possible error responses:
+- `400`: Invalid fields or immutable field update attempt
+- `401`: Missing auth token
+- `403`: Invalid/expired token
+- `404`: User not found
+
+---
+
+### 6. Get My Activity Summary
+- **Method:** `GET`
+- **Path:** `/users/me/activity-summary`
+- **Auth:** Required
+- **Description:** Returns aggregate counts of the authenticated user’s issues by status for profile activity summary cards/widgets.
+
+Success response (`200`):
+```json
+{
+  "summary": {
+    "total": 24,
+    "open": 5,
+    "assigned": 4,
+    "inProgress": 3,
+    "resolved": 10,
+    "closed": 2,
+    "rejected": 0,
+    "lastActivityAt": "2026-05-04T09:10:00.000Z"
+  }
+}
+```
+
+Possible error responses:
+- `401`: Missing auth token
+- `403`: Invalid/expired token
+- `404`: User not found
+
+---
+
+### 7. Get My Activity Feed
+- **Method:** `GET`
+- **Path:** `/users/me/activity`
+- **Auth:** Required
+- **Description:** Returns a paginated citizen-visible activity timeline based on `issue_updates` for issues reported by the authenticated user.
+- **Description:** Returns a unified timeline with user activity events like issue reported, profile updated, and issue progress updates.
+
+Query params:
+- `page` (optional, default `1`)
+- `limit` (optional, default `20`, max `100`)
+
+Success response (`200`):
+```json
+{
+  "page": 1,
+  "limit": 20,
+  "events": [
+    {
+      "eventId": "issue-update-1201",
+      "eventType": "STATUS_CHANGED",
+      "title": "Issue update: #302",
+      "message": "Issue has been resolved and proof uploaded.",
+      "issue": {
+        "id": 302,
+        "title": "Streetlight not working",
+        "currentStatus": "resolved"
+      },
+      "oldStatus": "in_progress",
+      "newStatus": "resolved",
+      "proofImageUrl": "https://example.com/proof.jpg",
+      "createdAt": "2026-05-04T09:10:00.000Z"
+    },
+    {
+      "eventId": "user-event-45",
+      "eventType": "PROFILE_UPDATED",
+      "title": "Profile updated",
+      "message": "Your account settings were updated successfully.",
+      "issue": null,
+      "oldStatus": null,
+      "newStatus": null,
+      "proofImageUrl": null,
+      "metadata": {
+        "updatedFields": ["phone", "addressText", "profileImageUrl"]
+      },
+      "createdAt": "2026-05-04T09:00:00.000Z"
+    },
+    {
+      "eventId": "issue-created-302",
+      "eventType": "ISSUE_REPORTED",
+      "title": "Issue reported: #302",
+      "message": "Streetlight not working",
+      "issue": {
+        "id": 302,
+        "title": "Streetlight not working",
+        "currentStatus": "open"
+      },
+      "oldStatus": null,
+      "newStatus": "open",
+      "proofImageUrl": null,
+      "createdAt": "2026-05-03T18:25:00.000Z"
+    }
+  ]
+}
+```
+
+Typical `eventType` values:
+- `ISSUE_REPORTED`
+- `PROFILE_UPDATED`
+- `STATUS_CHANGED`
+- Other admin workflow event types from `issue_updates` (for example `ASSIGNED`, `FORWARDED`, `RESOLUTION_SUBMITTED`)
+
+Possible error responses:
+- `400`: Invalid pagination query parameter
+- `401`: Missing auth token
+- `403`: Invalid/expired token
+- `404`: User not found
+
+---
+
 ## Utility Endpoints
 
 ### Health Check

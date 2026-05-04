@@ -55,6 +55,7 @@ model User {
   addressLocality        String?
   addressLandmark        String?
   addressText            String?
+  profileImageUrl        String?
   pinCode                String?
   addressLat             Float?
   addressLng             Float?
@@ -66,8 +67,24 @@ model User {
   userRoles      UserRole[]
   authorityProfile AuthorityProfile?
   issueUpdates   IssueUpdate[]
+  activityEvents UserActivityEvent[]
 
   @@map("users")
+}
+
+model UserActivityEvent {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  type        String
+  title       String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_activity_events")
 }
 
 model Role {

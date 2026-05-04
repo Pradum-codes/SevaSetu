@@ -140,6 +140,15 @@ const parseOptionalDate = (value) => {
   return date;
 };
 
+const parseOptionalFilterDate = (value, fieldName) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new IssueServiceError(`${fieldName} must be a valid ISO date`);
+  }
+  return date;
+};
+
 const mapIssueVoteCount = (issue) => {
   if (!issue) return issue;
   const voteCount = issue?._count?.votes ?? 0;
@@ -598,9 +607,20 @@ export const listUserReports = async ({ userId, query }) => {
   const page = parsePositiveInt(query?.page, 1, Number.MAX_SAFE_INTEGER);
   const skip = (page - 1) * limit;
   const status = normalizeStatus(query?.status);
+  const fromDate = parseOptionalFilterDate(query?.fromDate, 'fromDate');
+  const toDate = parseOptionalFilterDate(query?.toDate, 'toDate');
+
+  if (fromDate && toDate && fromDate > toDate) {
+    throw new IssueServiceError('fromDate cannot be greater than toDate');
+  }
 
   const where = { userId };
   if (status) where.status = status;
+  if (fromDate || toDate) {
+    where.createdAt = {};
+    if (fromDate) where.createdAt.gte = fromDate;
+    if (toDate) where.createdAt.lte = toDate;
+  }
 
   const issues = await findIssues({
     where,

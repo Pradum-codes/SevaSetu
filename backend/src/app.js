@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import issueRoutes from './routes/issues.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import usersRoutes from './routes/users.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -47,6 +48,7 @@ app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/issues', issueRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/users', usersRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
