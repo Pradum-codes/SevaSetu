@@ -1,4 +1,4 @@
-package com.example.sevasetu
+package com.example.sevasetu.ui.screen.dashboard
 
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -8,13 +8,17 @@ import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
 import android.Manifest
+import android.content.Context
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
+import android.graphics.Path
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import android.location.Location
+import android.view.MotionEvent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -63,9 +67,9 @@ import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
-import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.Profile.ProfileScreen
-import com.example.sevasetu.ui.screen.Reports.ReportScreen
+import com.example.sevasetu.ui.screen.alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.profile.ProfileScreen
+import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration as OsmConfiguration
@@ -78,7 +82,11 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
-import com.example.sevasetu.ui.screen.Reports.IssueReport
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.unit.TextUnit
+import com.example.sevasetu.ui.screen.reports.IssueReport
+import com.example.sevasetu.utils.JurisdictionConstants
+import com.example.sevasetu.utils.TokenManager
 
 class Dashboard : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -149,7 +157,7 @@ fun DashboardScreen(
                 issueRepository.voteIssue(issue.id)
                     .onSuccess { response ->
                         // Update local vote tracker
-                        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                        val tokenManager = TokenManager(context)
                         if (response.voted) {
                             tokenManager.addVotedIssue(issue.id)
                         } else {
@@ -177,10 +185,10 @@ fun DashboardScreen(
                         }
                     }
                     .onFailure {
-                        android.widget.Toast.makeText(
+                        Toast.makeText(
                             context,
                             "Failed to update vote: ${it.message}",
-                            android.widget.Toast.LENGTH_SHORT
+                            Toast.LENGTH_SHORT
                         ).show()
                     }
                 voteInFlight = false
@@ -190,17 +198,17 @@ fun DashboardScreen(
 
     // Get user's district from TokenManager
     val userDistrictId = remember {
-        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+        val tokenManager = TokenManager(context)
         tokenManager.getUserDistrict()?.takeIf { it.isNotBlank() } ?: DEFAULT_NEARBY_DISTRICT_ID
     }
 
     val userDistrictName = remember(userDistrictId) {
-        com.example.sevasetu.utils.JurisdictionConstants.DISTRICTS
+        JurisdictionConstants.DISTRICTS
             .find { it.id == userDistrictId }?.name ?: "Unknown"
     }
 
     val userDistrictCoords = remember(userDistrictId) {
-        val dist = com.example.sevasetu.utils.JurisdictionConstants.DISTRICTS
+        val dist = JurisdictionConstants.DISTRICTS
             .find { it.id == userDistrictId }
         if (dist != null) GeoPoint(dist.lat, dist.lng) else GeoPoint(31.6340, 74.8723)
     }
@@ -270,7 +278,7 @@ fun DashboardScreen(
                         districtId = userDistrictId
                     )
                         .onSuccess { response ->
-                            val tokenManager = com.example.sevasetu.utils.TokenManager(context)
+                            val tokenManager = TokenManager(context)
                             val votedSet = tokenManager.getVotedIssues()
                             val enrichedIssues = response.issues.map {
                                 it.copy(isVotedByMe = it.isVotedByMe ?: votedSet.contains(it.id))
@@ -994,7 +1002,7 @@ private fun DashboardMapSection(
                                 text = "Mode: ${mapUiState.searchMode.capitalized()}",
                                 fontSize = 9.sp,
                                 color = Color.Gray,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                fontStyle = FontStyle.Italic
                             )
                         }
                     }
@@ -1013,7 +1021,7 @@ private fun NearbyIssuesMap(
     val context = LocalContext.current
     val mapView = remember {
         val appContext = context.applicationContext
-        val prefs = appContext.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
         OsmConfiguration.getInstance().load(appContext, prefs)
         OsmConfiguration.getInstance().userAgentValue = appContext.packageName
 
@@ -1038,12 +1046,12 @@ private fun NearbyIssuesMap(
         modifier = modifier
             .pointerInteropFilter { event ->
                 when (event.action) {
-                    android.view.MotionEvent.ACTION_DOWN,
-                    android.view.MotionEvent.ACTION_MOVE -> {
+                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_MOVE -> {
                         mapView.parent?.requestDisallowInterceptTouchEvent(true)
                     }
-                    android.view.MotionEvent.ACTION_UP,
-                    android.view.MotionEvent.ACTION_CANCEL -> {
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> {
                         mapView.parent?.requestDisallowInterceptTouchEvent(false)
                     }
                 }
@@ -1073,7 +1081,7 @@ private fun NearbyIssuesMap(
 }
 
 private fun createMarkerIcon(
-    context: android.content.Context,
+    context: Context,
     fillColor: Int
 ): BitmapDrawable {
     val size = 96
@@ -1107,8 +1115,8 @@ private fun createMarkerIcon(
         color = fillColor
     }
 
-    val shadowPath = android.graphics.Path().apply {
-        addCircle(cx + 3f, headCy + 4f, headRadius, android.graphics.Path.Direction.CW)
+    val shadowPath = Path().apply {
+        addCircle(cx + 3f, headCy + 4f, headRadius, Path.Direction.CW)
         moveTo(cx - 12f, headCy + 20f)
         lineTo(cx + 3f, tipY + 5f)
         lineTo(cx + 18f, headCy + 20f)
@@ -1116,8 +1124,8 @@ private fun createMarkerIcon(
     }
     canvas.drawPath(shadowPath, shadowPaint)
 
-    val pinPath = android.graphics.Path().apply {
-        addCircle(cx, headCy, headRadius, android.graphics.Path.Direction.CW)
+    val pinPath = Path().apply {
+        addCircle(cx, headCy, headRadius, Path.Direction.CW)
         moveTo(cx - 14f, headCy + 18f)
         lineTo(cx, tipY)
         lineTo(cx + 14f, headCy + 18f)
@@ -1343,7 +1351,7 @@ fun IssueCard(
 // Extension to allow Icon size in sp if needed, but usually dp is preferred. 
 // Using a helper for simplicity since Icon doesn't take sp directly easily without local density.
 @Composable
-fun Icon(imageVector: ImageVector, contentDescription: String?, size: androidx.compose.ui.unit.TextUnit, tint: Color) {
+fun Icon(imageVector: ImageVector, contentDescription: String?, size: TextUnit, tint: Color) {
     Icon(
         imageVector = imageVector,
         contentDescription = contentDescription,

@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Profile
+package com.example.sevasetu.ui.screen.profile
 
 import android.content.Intent
 import android.os.Bundle
@@ -85,13 +85,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.example.sevasetu.Dashboard
-import com.example.sevasetu.Login
+import com.example.sevasetu.ui.screen.dashboard.Dashboard
+import com.example.sevasetu.ui.screen.login.Login
 import com.example.sevasetu.data.remote.dto.UserActivityEventDto
 import com.example.sevasetu.data.repository.UserRepository
 import com.example.sevasetu.network.NetworkModule
-import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.Reports.ReportScreen
+import com.example.sevasetu.ui.screen.alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager

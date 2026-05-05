@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Alerts
+package com.example.sevasetu.ui.screen.alerts
 
 import android.content.Intent
 import android.os.Bundle
@@ -26,9 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sevasetu.Dashboard
-import com.example.sevasetu.ui.screen.Profile.ProfileScreen
-import com.example.sevasetu.ui.screen.Reports.ReportScreen
+import com.example.sevasetu.ui.screen.dashboard.Dashboard
+import com.example.sevasetu.ui.screen.profile.ProfileScreen
+import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 
 class AlertsScreen : ComponentActivity() {

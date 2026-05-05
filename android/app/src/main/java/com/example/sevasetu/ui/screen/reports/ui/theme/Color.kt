@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Reports.ui.theme
+package com.example.sevasetu.ui.screen.reports.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

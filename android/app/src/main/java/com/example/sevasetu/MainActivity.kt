@@ -21,12 +21,14 @@ import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.navigation.AppRoute
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
-import com.example.sevasetu.ui.screen.Alerts.AlertsScreenContent
-import com.example.sevasetu.ui.screen.Login.AccountCreationScreen
-import com.example.sevasetu.ui.screen.Profile.ProfileScreenContent
-import com.example.sevasetu.ui.screen.Reports.IssueReportScreen
-import com.example.sevasetu.ui.screen.Reports.MyReportsScreen
+import com.example.sevasetu.ui.screen.alerts.AlertsScreenContent
+import com.example.sevasetu.ui.screen.login.AccountCreationScreen
+import com.example.sevasetu.ui.screen.profile.ProfileScreenContent
+import com.example.sevasetu.ui.screen.reports.IssueReportScreen
+import com.example.sevasetu.ui.screen.reports.MyReportsScreen
 import com.example.sevasetu.ui.screen.SplashScreenContent
+import com.example.sevasetu.ui.screen.dashboard.DashboardScreen
+import com.example.sevasetu.ui.screen.login.LoginScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.TokenManager
 

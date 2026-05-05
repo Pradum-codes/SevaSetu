@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Reports
+package com.example.sevasetu.ui.screen.reports
 
 import android.Manifest
 import android.app.Activity
@@ -96,13 +96,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
-import com.example.sevasetu.Dashboard
+import com.example.sevasetu.ui.screen.dashboard.Dashboard
 import com.example.sevasetu.data.remote.cloudinary.CloudinaryUploader
 import com.example.sevasetu.data.remote.dto.CreateIssueRequest
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.NetworkModule
-import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.Profile.ProfileScreen
+import com.example.sevasetu.ui.screen.alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.CategoryConstants
 import com.example.sevasetu.utils.JurisdictionConstants

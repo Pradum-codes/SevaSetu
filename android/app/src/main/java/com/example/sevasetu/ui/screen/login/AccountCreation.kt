@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Login
+package com.example.sevasetu.ui.screen.login
 
 import android.content.Context
 import android.content.Intent
@@ -53,7 +53,6 @@ import com.example.sevasetu.network.NetworkModule
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
 import com.example.sevasetu.ui.theme.SevaSetuTheme
-import com.example.sevasetu.Login
 import com.example.sevasetu.data.repository.AuthRepository
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager

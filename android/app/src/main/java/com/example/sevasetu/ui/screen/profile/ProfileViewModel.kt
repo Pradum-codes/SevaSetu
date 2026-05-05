@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Profile
+package com.example.sevasetu.ui.screen.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

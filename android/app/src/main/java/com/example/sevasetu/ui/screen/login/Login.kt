@@ -1,4 +1,4 @@
-package com.example.sevasetu
+package com.example.sevasetu.ui.screen.login
 
 import android.content.Intent
 import android.os.Bundle
@@ -48,11 +48,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sevasetu.R
 import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
+import com.example.sevasetu.ui.screen.dashboard.Dashboard
 import com.example.sevasetu.ui.theme.SevaSetuTheme
-import com.example.sevasetu.ui.screen.Login.AccountCreation
 
 class Login : ComponentActivity() {
 

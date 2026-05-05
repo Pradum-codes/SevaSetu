@@ -1,4 +1,4 @@
-package com.example.sevasetu.ui.screen.Reports
+package com.example.sevasetu.ui.screen.reports
 
 import android.content.Intent
 import android.os.Build
@@ -47,14 +47,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import com.example.sevasetu.Dashboard
+import com.example.sevasetu.ui.screen.dashboard.Dashboard
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
-import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.Profile.ProfileScreen
+import com.example.sevasetu.ui.screen.alerts.AlertsScreen
+import com.example.sevasetu.ui.screen.profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
