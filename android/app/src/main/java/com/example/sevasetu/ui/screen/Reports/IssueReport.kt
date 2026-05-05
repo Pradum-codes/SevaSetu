@@ -141,8 +141,25 @@ private const val MAX_REPORT_IMAGES = 5
 @Composable
 fun IssueReportScreen() {
     val context = LocalContext.current
-    val inPreview = LocalInspectionMode.current
     val backPressedDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    IssueReportScreen(
+        onBack = { backPressedDispatcher?.onBackPressed() },
+        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
+        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IssueReportScreen(
+    onBack: () -> Unit,
+    onNavigateHome: () -> Unit,
+    onNavigateAlerts: () -> Unit,
+    onNavigateProfile: () -> Unit
+) {
+    val context = LocalContext.current
+    val inPreview = LocalInspectionMode.current
     val scope = rememberCoroutineScope()
     val appContext = context.applicationContext
 
@@ -466,7 +483,7 @@ fun IssueReportScreen() {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { backPressedDispatcher?.onBackPressed() }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -475,7 +492,7 @@ fun IssueReportScreen() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { context.startActivity(Intent(context, ProfileScreen::class.java)) }) {
+                    IconButton(onClick = onNavigateProfile) {
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -498,7 +515,7 @@ fun IssueReportScreen() {
             NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, Dashboard::class.java)) },
+                    onClick = onNavigateHome,
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
                 )
@@ -515,13 +532,13 @@ fun IssueReportScreen() {
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+                    onClick = onNavigateAlerts,
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
+                    onClick = onNavigateProfile,
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }
                 )

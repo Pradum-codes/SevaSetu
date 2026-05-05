@@ -128,6 +128,28 @@ class ProfileScreen : ComponentActivity() {
 @Composable
 fun ProfileScreenContent() {
     val context = LocalContext.current
+    ProfileScreenContent(
+        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
+        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
+        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+        onNavigateLogin = {
+            val intent = Intent(context, Login::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            context.startActivity(intent)
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreenContent(
+    onNavigateHome: () -> Unit,
+    onNavigateReports: () -> Unit,
+    onNavigateAlerts: () -> Unit,
+    onNavigateLogin: () -> Unit
+) {
+    val context = LocalContext.current
     val viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(
             repository = UserRepository(NetworkModule.provideUserApi(context)),
@@ -145,10 +167,7 @@ fun ProfileScreenContent() {
 
     LaunchedEffect(uiState.sessionExpired) {
         if (uiState.sessionExpired) {
-            val intent = Intent(context, Login::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-            context.startActivity(intent)
+            onNavigateLogin()
         }
     }
 
@@ -194,19 +213,19 @@ fun ProfileScreenContent() {
             NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, Dashboard::class.java)) },
+                    onClick = onNavigateHome,
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, ReportScreen::class.java)) },
+                    onClick = onNavigateReports,
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+                    onClick = onNavigateAlerts,
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
                 )

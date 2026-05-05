@@ -47,6 +47,21 @@ class AlertsScreen : ComponentActivity() {
 @Composable
 fun AlertsScreenContent() {
     val context = LocalContext.current
+    AlertsScreenContent(
+        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
+        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
+        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AlertsScreenContent(
+    onNavigateHome: () -> Unit,
+    onNavigateReports: () -> Unit,
+    onNavigateProfile: () -> Unit
+) {
+    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,7 +80,7 @@ fun AlertsScreenContent() {
                 },
                 actions = {
                     IconButton(onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     }) {
                         Box(
                             modifier = Modifier
@@ -98,7 +113,7 @@ fun AlertsScreenContent() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, Dashboard::class.java))
+                        onNavigateHome()
                     },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
@@ -106,7 +121,7 @@ fun AlertsScreenContent() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, ReportScreen::class.java))
+                        onNavigateReports()
                     },
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
@@ -125,7 +140,7 @@ fun AlertsScreenContent() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     },
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }

@@ -79,6 +79,24 @@ class ReportScreen : ComponentActivity() {
 @Composable
 fun MyReportsScreen() {
     val context = LocalContext.current
+    MyReportsScreen(
+        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
+        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
+        onNavigateIssueReport = { context.startActivity(Intent(context, IssueReport::class.java)) }
+    )
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyReportsScreen(
+    onNavigateHome: () -> Unit,
+    onNavigateAlerts: () -> Unit,
+    onNavigateProfile: () -> Unit,
+    onNavigateIssueReport: () -> Unit
+) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isPreview = LocalInspectionMode.current
     val issueRepository = remember(context) { IssueRepository(ApiService.issueApi(context)) }
@@ -207,7 +225,7 @@ fun MyReportsScreen() {
                 },
                 actions = {
                     IconButton(onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     }) {
                         Box(
                             modifier = Modifier
@@ -232,7 +250,7 @@ fun MyReportsScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, Dashboard::class.java))
+                        onNavigateHome()
                     },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
@@ -251,7 +269,7 @@ fun MyReportsScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, AlertsScreen::class.java))
+                        onNavigateAlerts()
                     },
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
@@ -259,7 +277,7 @@ fun MyReportsScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     },
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }
@@ -421,7 +439,7 @@ fun MyReportsScreen() {
                         .clip(RoundedCornerShape(32.dp))
                         .background(Color.White)
                         .clickable {
-                            context.startActivity(Intent(context, IssueReport::class.java))
+                            onNavigateIssueReport()
                         }
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {

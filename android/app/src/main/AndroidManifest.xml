@@ -25,23 +25,7 @@
         </provider>
 
         <activity
-            android:name=".ui.screen.Reports.IssueReport"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".ui.screen.Login.AccountCreation"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".ui.screen.Alerts.AlertsScreen"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".ui.screen.Reports.ReportScreen"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".ui.screen.SplashScreen"
+            android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.SevaSetu">
             <intent-filter>
@@ -50,21 +34,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".Dashboard"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".Login"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:theme="@style/Theme.SevaSetu" />
-        <activity
-            android:name=".ui.screen.Profile.ProfileScreen"
-            android:exported="false" />
     </application>
 
 </manifest>

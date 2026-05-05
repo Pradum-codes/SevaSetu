@@ -98,6 +98,24 @@ class Dashboard : ComponentActivity() {
 @Composable
 fun DashboardScreen() {
     val context = LocalContext.current
+    DashboardScreen(
+        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
+        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
+        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
+        onNavigateIssueReport = { context.startActivity(Intent(context, IssueReport::class.java)) }
+    )
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardScreen(
+    onNavigateReports: () -> Unit,
+    onNavigateAlerts: () -> Unit,
+    onNavigateProfile: () -> Unit,
+    onNavigateIssueReport: () -> Unit
+) {
+    val context = LocalContext.current
     val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
     val scope = rememberCoroutineScope()
     var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
@@ -336,7 +354,7 @@ fun DashboardScreen() {
                 },
                 actions = {
                     IconButton(onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     }) {
                         Box(
                             modifier = Modifier
@@ -373,7 +391,7 @@ fun DashboardScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, ReportScreen::class.java))
+                        onNavigateReports()
                     },
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
@@ -381,7 +399,7 @@ fun DashboardScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, AlertsScreen::class.java))
+                        onNavigateAlerts()
                     },
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") }
@@ -389,7 +407,7 @@ fun DashboardScreen() {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
+                        onNavigateProfile()
                     },
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }
@@ -399,7 +417,7 @@ fun DashboardScreen() {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    context.startActivity(Intent(context, IssueReport::class.java))
+                    onNavigateIssueReport()
                 },
                 containerColor = Color(0xFF00875A),
                 contentColor = Color.White,
@@ -455,7 +473,7 @@ fun DashboardScreen() {
             DashboardSnapshotSection(
                 dashboardUiState = dashboardUiState,
                 onOpenReports = {
-                    context.startActivity(Intent(context, ReportScreen::class.java))
+                    onNavigateReports()
                 }
             )
 
