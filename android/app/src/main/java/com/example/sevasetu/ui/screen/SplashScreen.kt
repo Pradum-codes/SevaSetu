@@ -1,10 +1,5 @@
 package com.example.sevasetu.ui.screen
 
-import android.content.Intent
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -42,28 +37,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sevasetu.ui.screen.login.Login
 import com.example.sevasetu.R
-import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.HttpURLConnection
 import java.net.URL
-
-class SplashScreen : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                SplashScreenContent(onNavigate = {
-                    startActivity(Intent(this, Login::class.java))
-                    finish()
-                })
-            }
-        }
-    }
-}
 
 @Composable
 fun SplashScreenContent(onNavigate: () -> Unit) {

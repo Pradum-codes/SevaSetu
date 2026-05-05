@@ -1,10 +1,4 @@
 package com.example.sevasetu.ui.screen.alerts
-
-import android.content.Intent
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,38 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sevasetu.ui.screen.dashboard.Dashboard
-import com.example.sevasetu.ui.screen.profile.ProfileScreen
-import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
-
-class AlertsScreen : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                AlertsScreenContent()
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AlertsScreenContent() {
-    val context = LocalContext.current
-    AlertsScreenContent(
-        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
-        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
-        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) }
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +28,6 @@ fun AlertsScreenContent(
     onNavigateReports: () -> Unit,
     onNavigateProfile: () -> Unit
 ) {
-    val context = LocalContext.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -422,6 +388,10 @@ fun NotificationItem(
 @Composable
 fun AlertsScreenPreview() {
     SevaSetuTheme {
-        AlertsScreenContent()
+        AlertsScreenContent(
+            onNavigateHome = {},
+            onNavigateReports = {},
+            onNavigateProfile = {}
+        )
     }
 }

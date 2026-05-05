@@ -1,11 +1,6 @@
 package com.example.sevasetu.ui.screen.reports
 
-import android.content.Intent
 import android.os.Build
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -47,45 +42,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import com.example.sevasetu.ui.screen.dashboard.Dashboard
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
-import com.example.sevasetu.ui.screen.alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-
-class ReportScreen : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                MyReportsScreen()
-            }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MyReportsScreen() {
-    val context = LocalContext.current
-    MyReportsScreen(
-        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
-        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
-        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
-        onNavigateIssueReport = { context.startActivity(Intent(context, IssueReport::class.java)) }
-    )
-}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -718,6 +684,11 @@ private fun previewReports(): List<ReportListItem> {
 @Composable
 fun MyReportsScreenPreview() {
     SevaSetuTheme {
-        MyReportsScreen()
+        MyReportsScreen(
+            onNavigateHome = {},
+            onNavigateAlerts = {},
+            onNavigateProfile = {},
+            onNavigateIssueReport = {}
+        )
     }
 }

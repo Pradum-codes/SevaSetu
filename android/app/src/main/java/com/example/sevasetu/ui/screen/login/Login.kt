@@ -1,11 +1,5 @@
 package com.example.sevasetu.ui.screen.login
 
-import android.content.Intent
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -49,42 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sevasetu.R
-import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.ui.common.AuthViewModel
-import com.example.sevasetu.ui.common.AuthViewModelFactory
-import com.example.sevasetu.ui.screen.dashboard.Dashboard
-import com.example.sevasetu.ui.theme.SevaSetuTheme
-
-class Login : ComponentActivity() {
-
-    private val authViewModel: AuthViewModel by viewModels {
-        AuthViewModelFactory(AuthContainer.provideAuthRepository(this))
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (authViewModel.restoreSession()) {
-            startActivity(Intent(this, Dashboard::class.java))
-            finish()
-            return
-        }
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                LoginScreen(
-                    authViewModel = authViewModel,
-                    onAuthSuccess = {
-                        startActivity(Intent(this, Dashboard::class.java))
-                        finish()
-                    },
-                    onCreateAccountClick = {
-                        startActivity(Intent(this, AccountCreation::class.java))
-                    }
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun LoginScreen(

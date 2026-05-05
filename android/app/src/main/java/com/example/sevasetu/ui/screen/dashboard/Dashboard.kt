@@ -3,9 +3,7 @@ package com.example.sevasetu.ui.screen.dashboard
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
-import android.content.Intent
 import android.os.Build
-import android.os.Bundle
 import android.view.ViewGroup
 import android.Manifest
 import android.content.Context
@@ -19,9 +17,6 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import android.location.Location
 import android.view.MotionEvent
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,9 +62,6 @@ import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
-import com.example.sevasetu.ui.screen.alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.profile.ProfileScreen
-import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration as OsmConfiguration
@@ -84,35 +76,8 @@ import androidx.core.graphics.createBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.TextUnit
-import com.example.sevasetu.ui.screen.reports.IssueReport
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager
-
-class Dashboard : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                DashboardScreen()
-            }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DashboardScreen() {
-    val context = LocalContext.current
-    DashboardScreen(
-        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
-        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
-        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
-        onNavigateIssueReport = { context.startActivity(Intent(context, IssueReport::class.java)) }
-    )
-}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1365,7 +1330,12 @@ fun Icon(imageVector: ImageVector, contentDescription: String?, size: TextUnit, 
 @Composable
 fun DashboardPreview() {
     SevaSetuTheme {
-        DashboardScreen()
+        DashboardScreen(
+            onNavigateReports = {},
+            onNavigateAlerts = {},
+            onNavigateProfile = {},
+            onNavigateIssueReport = {}
+        )
     }
 }
 

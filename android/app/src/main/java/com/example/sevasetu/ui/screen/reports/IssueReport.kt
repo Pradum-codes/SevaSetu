@@ -9,11 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -96,13 +92,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
-import com.example.sevasetu.ui.screen.dashboard.Dashboard
 import com.example.sevasetu.data.remote.cloudinary.CloudinaryUploader
 import com.example.sevasetu.data.remote.dto.CreateIssueRequest
 import com.example.sevasetu.data.repository.IssueRepository
 import com.example.sevasetu.network.NetworkModule
-import com.example.sevasetu.ui.screen.alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.profile.ProfileScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.CategoryConstants
 import com.example.sevasetu.utils.JurisdictionConstants
@@ -123,32 +116,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
-class IssueReport : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                IssueReportScreen()
-            }
-        }
-    }
-}
-
 private const val MAX_REPORT_IMAGES = 5
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun IssueReportScreen() {
-    val context = LocalContext.current
-    val backPressedDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-    IssueReportScreen(
-        onBack = { backPressedDispatcher?.onBackPressed() },
-        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
-        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
-        onNavigateProfile = { context.startActivity(Intent(context, ProfileScreen::class.java)) }
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1213,6 +1181,11 @@ private fun createCameraTempFile(context: Context): Uri {
 @Composable
 fun IssueReportScreenPreview() {
     SevaSetuTheme {
-        IssueReportScreen()
+        IssueReportScreen(
+            onBack = {},
+            onNavigateHome = {},
+            onNavigateAlerts = {},
+            onNavigateProfile = {}
+        )
     }
 }

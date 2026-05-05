@@ -1,10 +1,5 @@
 package com.example.sevasetu.ui.screen.profile
 
-import android.content.Intent
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -85,13 +80,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.example.sevasetu.ui.screen.dashboard.Dashboard
-import com.example.sevasetu.ui.screen.login.Login
 import com.example.sevasetu.data.remote.dto.UserActivityEventDto
 import com.example.sevasetu.data.repository.UserRepository
 import com.example.sevasetu.network.NetworkModule
-import com.example.sevasetu.ui.screen.alerts.AlertsScreen
-import com.example.sevasetu.ui.screen.reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager
@@ -111,35 +102,6 @@ private val ProfileBorder = Color(0xFFE1EBE5)
 private val ProfileText = Color(0xFF17231D)
 private val ProfileMuted = Color(0xFF6E7C73)
 private const val PROFILE_IMAGE_BASE_URL = "https://sevasetu-zqa6.onrender.com/"
-
-class ProfileScreen : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                ProfileScreenContent()
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileScreenContent() {
-    val context = LocalContext.current
-    ProfileScreenContent(
-        onNavigateHome = { context.startActivity(Intent(context, Dashboard::class.java)) },
-        onNavigateReports = { context.startActivity(Intent(context, ReportScreen::class.java)) },
-        onNavigateAlerts = { context.startActivity(Intent(context, AlertsScreen::class.java)) },
-        onNavigateLogin = {
-            val intent = Intent(context, Login::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-            context.startActivity(intent)
-        }
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -579,7 +541,14 @@ fun PreferenceItem(
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    SevaSetuTheme { ProfileScreenContent() }
+    SevaSetuTheme {
+        ProfileScreenContent(
+            onNavigateHome = {},
+            onNavigateReports = {},
+            onNavigateAlerts = {},
+            onNavigateLogin = {}
+        )
+    }
 }
 
 @Composable

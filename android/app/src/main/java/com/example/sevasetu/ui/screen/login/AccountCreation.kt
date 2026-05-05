@@ -1,15 +1,10 @@
 package com.example.sevasetu.ui.screen.login
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,33 +51,6 @@ import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.data.repository.AuthRepository
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager
-
-class AccountCreation : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SevaSetuTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.White
-                ) { innerPadding ->
-                    AccountCreationScreen(
-                        modifier = Modifier.padding(innerPadding),
-                        onBackClick = { finish() },
-                        onLoginClick = {
-                            startActivity(Intent(this, Login::class.java))
-                            finish()
-                        },
-                        onRegistrationSuccess = {
-                            finish()
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun AccountCreationScreen(
