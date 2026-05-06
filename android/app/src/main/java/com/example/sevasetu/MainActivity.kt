@@ -16,10 +16,31 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -30,6 +51,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.navigation.AppRoute
+import com.example.sevasetu.navigation.bottomTabRoutes
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
 import com.example.sevasetu.ui.screen.alerts.AlertsScreenContent
@@ -75,10 +97,36 @@ private fun AppNavRoot() {
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = AppRoute.Splash.route
-    ) {
+    val shouldShowSharedBars = currentRoute in (bottomTabRoutes + AppRoute.IssueReport.route)
+
+    Scaffold(
+        containerColor = Color(0xFFF2F5F3),
+        topBar = {
+            if (shouldShowSharedBars) {
+                SharedTopBar(
+                    currentRoute = currentRoute.orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) }
+                )
+            }
+        },
+        bottomBar = {
+            if (currentRoute in bottomTabRoutes) {
+                SharedBottomBar(
+                    currentRoute = currentRoute.orEmpty(),
+                    onSelectTab = { route -> navController.selectTab(route) }
+                )
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF2F5F3)),
+            navController = navController,
+            startDestination = AppRoute.Splash.route
+        ) {
         composable(
             route = AppRoute.Splash.route,
             enterTransition = { EnterTransition.None },
@@ -118,7 +166,8 @@ private fun AppNavRoot() {
                     onNavigateReports = { navController.selectTab(AppRoute.Reports.route) },
                     onNavigateAlerts = { navController.selectTab(AppRoute.Alerts.route) },
                     onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) },
-                    onNavigateIssueReport = { navController.navigate(AppRoute.IssueReport.route) }
+                    onNavigateIssueReport = { navController.navigate(AppRoute.IssueReport.route) },
+                    showAppBars = false
                 )
             }
         }
@@ -134,7 +183,8 @@ private fun AppNavRoot() {
                     onNavigateHome = { navController.selectTab(AppRoute.Home.route) },
                     onNavigateAlerts = { navController.selectTab(AppRoute.Alerts.route) },
                     onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) },
-                    onNavigateIssueReport = { navController.navigate(AppRoute.IssueReport.route) }
+                    onNavigateIssueReport = { navController.navigate(AppRoute.IssueReport.route) },
+                    showAppBars = false
                 )
             }
         }
@@ -148,7 +198,8 @@ private fun AppNavRoot() {
             AlertsScreenContent(
                 onNavigateHome = { navController.selectTab(AppRoute.Home.route) },
                 onNavigateReports = { navController.selectTab(AppRoute.Reports.route) },
-                onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) }
+                onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) },
+                showAppBars = false
             )
         }
         composable(
@@ -166,7 +217,8 @@ private fun AppNavRoot() {
                     navController.navigate(AppRoute.Login.route) {
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
-                }
+                },
+                showAppBars = false
             )
         }
         composable(
@@ -180,9 +232,86 @@ private fun AppNavRoot() {
                 onBack = { navController.popBackStack() },
                 onNavigateHome = { navController.selectTab(AppRoute.Home.route) },
                 onNavigateAlerts = { navController.selectTab(AppRoute.Alerts.route) },
-                onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) }
+                onNavigateProfile = { navController.selectTab(AppRoute.Profile.route) },
+                showAppBars = false
             )
         }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun SharedTopBar(
+    currentRoute: String,
+    onBack: () -> Unit,
+    onNavigateProfile: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                when (currentRoute) {
+                    AppRoute.Reports.route -> "My Reports"
+                    AppRoute.Alerts.route -> "Notifications"
+                    AppRoute.Profile.route -> "Profile"
+                    AppRoute.IssueReport.route -> "Report Issue"
+                    else -> "SevaSetu"
+                }
+            )
+        },
+        navigationIcon = {
+            if (currentRoute == AppRoute.IssueReport.route) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
+        actions = {
+            if (currentRoute != AppRoute.Profile.route) {
+                IconButton(onClick = onNavigateProfile) {
+                    Icon(Icons.Default.Person, contentDescription = "Profile")
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+    )
+}
+
+@Composable
+private fun SharedBottomBar(
+    currentRoute: String,
+    onSelectTab: (String) -> Unit
+) {
+    NavigationBar(containerColor = Color.White) {
+        NavigationBarItem(
+            selected = currentRoute == AppRoute.Home.route,
+            onClick = { onSelectTab(AppRoute.Home.route) },
+            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+            label = { Text("HOME") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = Color(0xFF00875A),
+                selectedTextColor = Color(0xFF00875A),
+                indicatorColor = Color(0xFFE8F5E9)
+            )
+        )
+        NavigationBarItem(
+            selected = currentRoute == AppRoute.Reports.route,
+            onClick = { onSelectTab(AppRoute.Reports.route) },
+            icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
+            label = { Text("REPORTS") }
+        )
+        NavigationBarItem(
+            selected = currentRoute == AppRoute.Alerts.route,
+            onClick = { onSelectTab(AppRoute.Alerts.route) },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
+            label = { Text("ALERTS") }
+        )
+        NavigationBarItem(
+            selected = currentRoute == AppRoute.Profile.route,
+            onClick = { onSelectTab(AppRoute.Profile.route) },
+            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+            label = { Text("PROFILE") }
+        )
     }
 }
 

@@ -56,7 +56,9 @@ fun MyReportsScreen(
     onNavigateHome: () -> Unit,
     onNavigateAlerts: () -> Unit,
     onNavigateProfile: () -> Unit,
-    onNavigateIssueReport: () -> Unit
+    onNavigateIssueReport: () -> Unit,
+    showAppBars: Boolean = true,
+    hostPadding: PaddingValues = PaddingValues()
 ) {
     val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
     val viewModel: ReportsViewModel = viewModel(viewModelStoreOwner = viewModelStoreOwner)
@@ -70,7 +72,8 @@ fun MyReportsScreen(
 
     LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
-    Scaffold(
+    if (showAppBars) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -148,36 +151,78 @@ fun MyReportsScreen(
             }
         }
     ) { innerPadding ->
-        PullToRefreshBox(
+            ReportsBody(
+                hostPadding = hostPadding,
+                innerPadding = innerPadding,
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                selectedFilter = selectedFilter,
+                onFilterChanged = { viewModel.onFilterChanged(it) },
+                uiState = uiState,
+                onOpenIssue = { viewModel.openIssue(it) },
+                onNavigateIssueReport = onNavigateIssueReport
+            )
+        }
+    } else {
+        ReportsBody(
+            hostPadding = hostPadding,
+            innerPadding = PaddingValues(),
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.refresh() },
+            selectedFilter = selectedFilter,
+            onFilterChanged = { viewModel.onFilterChanged(it) },
+            uiState = uiState,
+            onOpenIssue = { viewModel.openIssue(it) },
+            onNavigateIssueReport = onNavigateIssueReport
+        )
+    }
+
+    // Show issue detail modal
+    if (selectedIssue != null) {
+        IssueDetailModal(
+            issue = selectedIssue!!,
+            onDismiss = { viewModel.dismissIssueModal() },
+            onVoteClick = { viewModel.handleVote() },
+            isVoteLoading = voteInFlight,
+            timeline = selectedIssueTimeline,
+            isTimelineLoading = isTimelineLoading
+        )
+    }
+}
+
+@Composable
+private fun ReportsBody(
+    hostPadding: PaddingValues,
+    innerPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    selectedFilter: ReportStatusFilter,
+    onFilterChanged: (ReportStatusFilter) -> Unit,
+    uiState: ReportsUiState,
+    onOpenIssue: (IssueDto) -> Unit,
+    onNavigateIssueReport: () -> Unit
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier
+            .padding(hostPadding)
+            .padding(innerPadding)
+            .fillMaxSize()
+    ) {
+        LazyColumn(
             modifier = Modifier
-                .padding(innerPadding)
                 .fillMaxSize()
+                .background(Color(0xFFF2F5F3))
+                .padding(horizontal = 20.dp)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFF2F5F3))
-                    .padding(horizontal = 20.dp)
-            ) {
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "My Reports",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
+                Text("My Reports", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Tracking your contributions to a cleaner city.",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
+                Text("Tracking your contributions to a cleaner city.", fontSize = 14.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Search Bar
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -189,10 +234,9 @@ fun MyReportsScreen(
                     }
                     HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 1.dp)
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Filters
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,9 +251,7 @@ fun MyReportsScreen(
                             modifier = Modifier
                                 .height(36.dp)
                                 .clickable {
-                                    if (selectedFilter != filter) {
-                                        viewModel.onFilterChanged(filter)
-                                    }
+                                    if (selectedFilter != filter) onFilterChanged(filter)
                                 },
                             border = BorderStroke(1.dp, if (isSelected) Color(0xFF006D47) else Color(0xFFD1D5D3))
                         ) {
@@ -244,7 +286,6 @@ fun MyReportsScreen(
                         }
                     }
                 }
-
                 uiState.errorMessage != null -> {
                     item {
                         Card(
@@ -254,20 +295,15 @@ fun MyReportsScreen(
                             border = BorderStroke(1.dp, Color(0xFFE0E0E0))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = uiState.errorMessage.orEmpty(),
-                                    color = Color(0xFF2D2D2D),
-                                    fontSize = 14.sp
-                                )
+                                Text(text = uiState.errorMessage.orEmpty(), color = Color(0xFF2D2D2D), fontSize = 14.sp)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                TextButton(onClick = { viewModel.refresh() }) {
+                                TextButton(onClick = onRefresh) {
                                     Text("Retry")
                                 }
                             }
                         }
                     }
                 }
-
                 uiState.reports.isEmpty() -> {
                     item {
                         Card(
@@ -285,13 +321,12 @@ fun MyReportsScreen(
                         }
                     }
                 }
-
                 else -> {
                     items(uiState.reports, key = { it.id }) { report ->
                         val fullIssue = uiState.fullIssues.find { it.id == report.id }
                         ReportIssueCard(
                             report = report,
-                            onClick = { fullIssue?.let { viewModel.openIssue(it) } }
+                            onClick = { fullIssue?.let(onOpenIssue) }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -300,16 +335,13 @@ fun MyReportsScreen(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                // Submit New Report Section with dashed border
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
                         .clip(RoundedCornerShape(32.dp))
                         .background(Color.White)
-                        .clickable {
-                            onNavigateIssueReport()
-                        }
+                        .clickable(onClick = onNavigateIssueReport)
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
                         drawRoundRect(
@@ -321,7 +353,7 @@ fun MyReportsScreen(
                             cornerRadius = CornerRadius(32.dp.toPx())
                         )
                     }
-                    
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -356,20 +388,7 @@ fun MyReportsScreen(
                 }
                 Spacer(modifier = Modifier.height(40.dp))
             }
-            }
         }
-    }
-
-    // Show issue detail modal
-    if (selectedIssue != null) {
-        IssueDetailModal(
-            issue = selectedIssue!!,
-            onDismiss = { viewModel.dismissIssueModal() },
-            onVoteClick = { viewModel.handleVote() },
-            isVoteLoading = voteInFlight,
-            timeline = selectedIssueTimeline,
-            isTimelineLoading = isTimelineLoading
-        )
     }
 }
 

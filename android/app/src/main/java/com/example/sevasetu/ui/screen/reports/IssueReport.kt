@@ -17,6 +17,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -124,7 +125,9 @@ fun IssueReportScreen(
     onBack: () -> Unit,
     onNavigateHome: () -> Unit,
     onNavigateAlerts: () -> Unit,
-    onNavigateProfile: () -> Unit
+    onNavigateProfile: () -> Unit,
+    showAppBars: Boolean = true,
+    hostPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
     val inPreview = LocalInspectionMode.current
@@ -441,7 +444,7 @@ fun IssueReportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            if (showAppBars) TopAppBar(
                 title = {
                     Text(
                         "Report Issue",
@@ -480,7 +483,7 @@ fun IssueReportScreen(
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            if (showAppBars) NavigationBar(containerColor = Color.White) {
                 NavigationBarItem(
                     selected = false,
                     onClick = onNavigateHome,
@@ -515,6 +518,7 @@ fun IssueReportScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
+                .padding(hostPadding)
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFFF8FAF9))

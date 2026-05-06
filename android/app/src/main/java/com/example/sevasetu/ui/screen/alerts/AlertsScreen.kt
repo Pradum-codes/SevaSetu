@@ -26,9 +26,12 @@ import com.example.sevasetu.ui.theme.SevaSetuTheme
 fun AlertsScreenContent(
     onNavigateHome: () -> Unit,
     onNavigateReports: () -> Unit,
-    onNavigateProfile: () -> Unit
+    onNavigateProfile: () -> Unit,
+    showAppBars: Boolean = true,
+    hostPadding: PaddingValues = PaddingValues()
 ) {
-    Scaffold(
+    if (showAppBars) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -113,168 +116,150 @@ fun AlertsScreenContent(
                 )
             }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(Color(0xFFF2F5F3)) // Darker background for visibility
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "Notifications",
-                    fontSize = 38.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Track the pulse of your civic contributions.",
-                    fontSize = 15.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                SectionHeader("TODAY")
-                
-                NotificationItem(
-                    title = "Issue Resolved",
-                    time = "2h ago",
-                    description = "Your report on 'Pothole at Sector 4' has been successfully resolved. Thank you for your contribution!",
-                    icon = Icons.Default.CheckCircle,
-                    iconBgColor = Color(0xFFE8F5E9),
-                    iconColor = Color(0xFF006D47),
-                    hasButton = true,
-                    buttonText = "View Results"
-                )
-                
-                NotificationItem(
-                    title = "Update on Report",
-                    time = "5h ago",
-                    description = "The status of 'Street Light Repair' has changed to In Progress. A technician has been assigned.",
-                    icon = Icons.AutoMirrored.Filled.Assignment,
-                    iconBgColor = Color(0xFFFFF1F1),
-                    iconColor = Color(0xFFD32F2F)
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                SectionHeader("YESTERDAY")
-                
-                NotificationItem(
-                    title = "Area Alert",
-                    time = "1d ago",
-                    description = "Scheduled maintenance for water pipelines in Vasant Kunj will occur tomorrow from 10 AM to 4 PM.",
-                    icon = Icons.Default.Campaign,
-                    iconBgColor = Color(0xFFF1F4F2),
-                    iconColor = Color(0xFF006D47)
-                )
-                
-                // Civic Hero Badge Card (Green)
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF00875A)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) { innerPadding ->
+            AlertsBody(
+                modifier = Modifier
+                    .padding(hostPadding)
+                    .padding(innerPadding)
+            )
+        }
+    } else {
+        AlertsBody(modifier = Modifier.padding(hostPadding))
+    }
+}
+
+@Composable
+private fun AlertsBody(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF2F5F3))
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Notifications",
+                fontSize = 38.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Track the pulse of your civic contributions.",
+                fontSize = 15.sp,
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            SectionHeader("TODAY")
+            NotificationItem(
+                title = "Issue Resolved",
+                time = "2h ago",
+                description = "Your report on 'Pothole at Sector 4' has been successfully resolved. Thank you for your contribution!",
+                icon = Icons.Default.CheckCircle,
+                iconBgColor = Color(0xFFE8F5E9),
+                iconColor = Color(0xFF006D47),
+                hasButton = true,
+                buttonText = "View Results"
+            )
+            NotificationItem(
+                title = "Update on Report",
+                time = "5h ago",
+                description = "The status of 'Street Light Repair' has changed to In Progress. A technician has been assigned.",
+                icon = Icons.AutoMirrored.Filled.Assignment,
+                iconBgColor = Color(0xFFFFF1F1),
+                iconColor = Color(0xFFD32F2F)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionHeader("YESTERDAY")
+            NotificationItem(
+                title = "Area Alert",
+                time = "1d ago",
+                description = "Scheduled maintenance for water pipelines in Vasant Kunj will occur tomorrow from 10 AM to 4 PM.",
+                icon = Icons.Default.Campaign,
+                iconBgColor = Color(0xFFF1F4F2),
+                iconColor = Color(0xFF006D47)
+            )
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF00875A)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        modifier = Modifier.size(56.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f)
                     ) {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.2f)
-                        ) {
-                            Icon(
-                                Icons.Default.WorkspacePremium,
-                                contentDescription = null,
-                                modifier = Modifier.padding(14.dp),
-                                tint = Color.White
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Civic Hero Badge!",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "1d ago",
-                                    fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Congratulations! You've reached the Silver Tier for active reporting this month.",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.9f),
-                                lineHeight = 20.sp
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Map Section
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    color = Color(0xFFDDE2DF),
-                    border = BorderStroke(1.dp, Color(0xFFD1D5D3))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        // Placeholder for Map Background
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Gray.copy(alpha = 0.1f))
+                        Icon(
+                            Icons.Default.WorkspacePremium,
+                            contentDescription = null,
+                            modifier = Modifier.padding(14.dp),
+                            tint = Color.White
                         )
-                        
-                        Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFD1D5D3)),
-                            shadowElevation = 4.dp
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Active Impact Map",
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF006D47)
-                            )
+                            Text("Civic Hero Badge!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("1d ago", fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Congratulations! You've reached the Silver Tier for active reporting this month.",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            lineHeight = 20.sp
+                        )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(40.dp))
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .padding(vertical = 8.dp),
+                shape = RoundedCornerShape(32.dp),
+                color = Color(0xFFDDE2DF),
+                border = BorderStroke(1.dp, Color(0xFFD1D5D3))
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Gray.copy(alpha = 0.1f))
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFD1D5D3)),
+                        shadowElevation = 4.dp
+                    ) {
+                        Text(
+                            text = "Active Impact Map",
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF006D47)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

@@ -87,7 +87,9 @@ fun DashboardScreen(
     onNavigateReports: () -> Unit,
     onNavigateAlerts: () -> Unit,
     onNavigateProfile: () -> Unit,
-    onNavigateIssueReport: () -> Unit
+    onNavigateIssueReport: () -> Unit,
+    showAppBars: Boolean = true,
+    hostPadding: PaddingValues = PaddingValues()
 ) {
     val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
     val viewModel: DashboardViewModel = viewModel(viewModelStoreOwner = viewModelStoreOwner)
@@ -101,7 +103,8 @@ fun DashboardScreen(
 
     LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
-    Scaffold(
+    if (showAppBars) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -194,20 +197,90 @@ fun DashboardScreen(
             }
         }
     ) { innerPadding ->
-        PullToRefreshBox(
+        DashboardBody(
+            hostPadding = hostPadding,
+            innerPadding = innerPadding,
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier
-        ) {
-            Column(
+            mapUiState = mapUiState,
+            userDistrictName = viewModel.userDistrictName,
+            centerPoint = viewModel.mapCenterPoint,
+            dashboardUiState = dashboardUiState,
+            onNavigateReports = onNavigateReports,
+            onOpenIssue = { viewModel.openIssue(it) }
+        )
+    }
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            DashboardBody(
+                hostPadding = hostPadding,
+                innerPadding = PaddingValues(),
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                mapUiState = mapUiState,
+                userDistrictName = viewModel.userDistrictName,
+                centerPoint = viewModel.mapCenterPoint,
+                dashboardUiState = dashboardUiState,
+                onNavigateReports = onNavigateReports,
+                onOpenIssue = { viewModel.openIssue(it) }
+            )
+            ExtendedFloatingActionButton(
+                onClick = onNavigateIssueReport,
+                containerColor = Color(0xFF00875A),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .background(Color(0xFFF8F9FA))
+                    .align(Alignment.BottomEnd)
                     .padding(16.dp)
             ) {
-            // Search Bar
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Report Issue")
+            }
+        }
+    }
+
+    // Show issue detail modal
+    if (selectedIssue != null) {
+        IssueDetailModal(
+            issue = selectedIssue!!,
+            onDismiss = { viewModel.dismissIssueModal() },
+            onVoteClick = { viewModel.handleVote() },
+            isVoteLoading = voteInFlight,
+            timeline = selectedIssueTimeline,
+            isTimelineLoading = isTimelineLoading
+        )
+    }
+
+}
+
+@Composable
+private fun DashboardBody(
+    hostPadding: PaddingValues,
+    innerPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    mapUiState: MapUiState,
+    userDistrictName: String?,
+    centerPoint: GeoPoint?,
+    dashboardUiState: DashboardUiState,
+    onNavigateReports: () -> Unit,
+    onOpenIssue: (IssueDto) -> Unit
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(hostPadding)
+                .padding(innerPadding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .background(Color(0xFFF8F9FA))
+                .padding(16.dp)
+        ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
@@ -231,25 +304,22 @@ fun DashboardScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            val resolvedCenterPoint = centerPoint ?: GeoPoint(31.6340, 74.8723)
             DashboardMapSection(
                 mapUiState = mapUiState,
-                userDistrictName = viewModel.userDistrictName,
-                centerPoint = viewModel.mapCenterPoint,
-                onRetry = { viewModel.refresh() }
+                userDistrictName = userDistrictName.orEmpty(),
+                centerPoint = resolvedCenterPoint,
+                onRetry = onRefresh
             )
 
             Spacer(Modifier.height(16.dp))
 
             DashboardSnapshotSection(
                 dashboardUiState = dashboardUiState,
-                onOpenReports = {
-                    onNavigateReports()
-                }
+                onOpenReports = onNavigateReports
             )
 
             Spacer(Modifier.height(16.dp))
-
-            // Nearby Insights
             Text("Nearby Insights", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Spacer(Modifier.height(8.dp))
             val currentDashboardState = dashboardUiState
@@ -262,26 +332,17 @@ fun DashboardScreen(
                         color = Color(0xFFF1F8E9)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("OPEN", color = Color.Gray, fontSize = 14.sp)
                                 Text(insights.open.toString(), color = Color(0xFFEF6C00), fontWeight = FontWeight.Bold)
                             }
                             Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("IN_PROGRESS", color = Color.Gray, fontSize = 14.sp)
                                 Text(insights.inProgress.toString(), color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)
                             }
                             Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("CLOSED", color = Color.Gray, fontSize = 14.sp)
                                 Text(insights.closed.toString(), color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
                             }
@@ -307,8 +368,6 @@ fun DashboardScreen(
             }
 
             Spacer(Modifier.height(24.dp))
-
-            // Quick Categories
             Text("Quick Categories", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Spacer(Modifier.height(12.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -318,8 +377,6 @@ fun DashboardScreen(
             }
 
             Spacer(Modifier.height(24.dp))
-
-            // Nearby Issues
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -336,25 +393,11 @@ fun DashboardScreen(
 
             NearbyIssuesListSection(
                 mapUiState = mapUiState,
-                onRetry = { viewModel.refresh() },
-                onIssueClick = { viewModel.openIssue(it) }
+                onRetry = onRefresh,
+                onIssueClick = onOpenIssue
             )
         }
-        }
     }
-
-    // Show issue detail modal
-    if (selectedIssue != null) {
-        IssueDetailModal(
-            issue = selectedIssue!!,
-            onDismiss = { viewModel.dismissIssueModal() },
-            onVoteClick = { viewModel.handleVote() },
-            isVoteLoading = voteInFlight,
-            timeline = selectedIssueTimeline,
-            isTimelineLoading = isTimelineLoading
-        )
-    }
-
 }
 
 @Composable

@@ -112,7 +112,9 @@ fun ProfileScreenContent(
     onNavigateHome: () -> Unit,
     onNavigateReports: () -> Unit,
     onNavigateAlerts: () -> Unit,
-    onNavigateLogin: () -> Unit
+    onNavigateLogin: () -> Unit,
+    showAppBars: Boolean = true,
+    hostPadding: PaddingValues = PaddingValues()
 ) {
     val context = LocalContext.current
     val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
@@ -136,7 +138,8 @@ fun ProfileScreenContent(
         }
     }
 
-    Scaffold(
+    if (showAppBars) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -208,21 +211,95 @@ fun ProfileScreenContent(
             }
         }
     ) { innerPadding ->
-        PullToRefreshBox(
+            ProfileBody(
+                hostPadding = hostPadding,
+                innerPadding = innerPadding,
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.refreshProfile() },
+                uiState = uiState,
+                viewModel = viewModel,
+                activeSheetSetter = { activeSheet = it }
+            )
+        }
+    } else {
+        ProfileBody(
+            hostPadding = hostPadding,
+            innerPadding = PaddingValues(),
             isRefreshing = uiState.isRefreshing,
             onRefresh = { viewModel.refreshProfile() },
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+            uiState = uiState,
+            viewModel = viewModel,
+            activeSheetSetter = { activeSheet = it }
+        )
+    }
+
+    val sheet = activeSheet
+    if (sheet != null) {
+        Dialog(
+            onDismissRequest = { activeSheet = null },
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                usePlatformDefaultWidth = false
+            )
         ) {
-            LazyColumn(
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFF2F5F3))
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .fillMaxWidth(0.94f)
+                    .fillMaxHeight(0.88f),
+                color = Color.White,
+                shape = RoundedCornerShape(24.dp),
+                shadowElevation = 16.dp
             ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    when (sheet) {
+                        ProfileSheet.MY_ACTIVITY -> MyActivitySheetContent(activityState = activityState)
+                        ProfileSheet.ACCOUNT_SETTINGS -> AccountSettingsSheetContent(
+                            state = accountState,
+                            onDistrictChanged = viewModel::onDistrictChanged,
+                            onPhoneChanged = viewModel::onPhoneChanged,
+                            onAddressTextChanged = viewModel::onAddressTextChanged,
+                            onPinCodeChanged = viewModel::onPinCodeChanged,
+                            onAddressLocalityChanged = viewModel::onAddressLocalityChanged,
+                            onAddressLandmarkChanged = viewModel::onAddressLandmarkChanged,
+                            onAddressLatChanged = viewModel::onAddressLatChanged,
+                            onAddressLngChanged = viewModel::onAddressLngChanged,
+                            onProfileImageUrlChanged = viewModel::onProfileImageUrlChanged,
+                            onSave = viewModel::saveAccountSettings
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileBody(
+    hostPadding: PaddingValues,
+    innerPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    uiState: ProfileUiState,
+    viewModel: ProfileViewModel,
+    activeSheetSetter: (ProfileSheet) -> Unit
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier
+            .padding(hostPadding)
+            .padding(innerPadding)
+            .fillMaxSize()
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF2F5F3))
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
                 item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -406,7 +483,7 @@ fun ProfileScreenContent(
                             label = "My Activity",
                             extraText = "Timeline view",
                             onClick = {
-                                activeSheet = ProfileSheet.MY_ACTIVITY
+                                activeSheetSetter(ProfileSheet.MY_ACTIVITY)
                                 viewModel.loadActivity()
                             }
                         )
@@ -416,7 +493,7 @@ fun ProfileScreenContent(
                             label = "Account Settings",
                             extraText = "Manage contact details",
                             onClick = {
-                                activeSheet = ProfileSheet.ACCOUNT_SETTINGS
+                                activeSheetSetter(ProfileSheet.ACCOUNT_SETTINGS)
                                 viewModel.loadAccountSettings()
                             }
                         )
@@ -438,47 +515,6 @@ fun ProfileScreenContent(
                     fontWeight = FontWeight.Medium
                 )
                 }
-            }
-        }
-    }
-
-    val sheet = activeSheet
-    if (sheet != null) {
-        Dialog(
-            onDismissRequest = { activeSheet = null },
-            properties = DialogProperties(
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true,
-                usePlatformDefaultWidth = false
-            )
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.94f)
-                    .fillMaxHeight(0.88f),
-                color = Color.White,
-                shape = RoundedCornerShape(24.dp),
-                shadowElevation = 16.dp
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    when (sheet) {
-                        ProfileSheet.MY_ACTIVITY -> MyActivitySheetContent(activityState = activityState)
-                        ProfileSheet.ACCOUNT_SETTINGS -> AccountSettingsSheetContent(
-                            state = accountState,
-                            onDistrictChanged = viewModel::onDistrictChanged,
-                            onPhoneChanged = viewModel::onPhoneChanged,
-                            onAddressTextChanged = viewModel::onAddressTextChanged,
-                            onPinCodeChanged = viewModel::onPinCodeChanged,
-                            onAddressLocalityChanged = viewModel::onAddressLocalityChanged,
-                            onAddressLandmarkChanged = viewModel::onAddressLandmarkChanged,
-                            onAddressLatChanged = viewModel::onAddressLatChanged,
-                            onAddressLngChanged = viewModel::onAddressLngChanged,
-                            onProfileImageUrlChanged = viewModel::onProfileImageUrlChanged,
-                            onSave = viewModel::saveAccountSettings
-                        )
-                    }
-                }
-            }
         }
     }
 }

@@ -30,7 +30,7 @@ class ProfileViewModel(
     val activityUiState: StateFlow<MyActivityUiState> = _activityUiState.asStateFlow()
 
     fun ensureLoaded() {
-        if (hasLoaded) return
+        if (hasLoaded && !_profileUiState.value.sessionExpired) return
         hasLoaded = true
         loadProfile()
     }
@@ -45,7 +45,8 @@ class ProfileViewModel(
                 it.copy(
                     isLoading = if (isRefresh) it.isLoading else true,
                     isRefreshing = isRefresh,
-                    errorMessage = null
+                    errorMessage = null,
+                    sessionExpired = false
                 )
             }
             repository.getMe()
@@ -56,7 +57,8 @@ class ProfileViewModel(
                             isRefreshing = false,
                             userName = user.name?.ifBlank { "Citizen User" } ?: "Citizen User",
                             locationText = user.district?.name ?: user.jurisdiction?.name ?: "Location unavailable",
-                            profileImageUrl = user.profileImageUrl
+                            profileImageUrl = user.profileImageUrl,
+                            sessionExpired = false
                         )
                     }
                 }
@@ -161,6 +163,7 @@ class ProfileViewModel(
 
     fun logout() {
         tokenManager.clear()
+        hasLoaded = false
         _profileUiState.value = ProfileUiState(sessionExpired = true)
     }
 }
