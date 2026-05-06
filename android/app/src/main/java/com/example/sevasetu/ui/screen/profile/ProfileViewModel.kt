@@ -19,6 +19,7 @@ class ProfileViewModel(
     private val repository: UserRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
+    private var hasLoaded = false
     private val _profileUiState = MutableStateFlow(ProfileUiState())
     val profileUiState: StateFlow<ProfileUiState> = _profileUiState.asStateFlow()
 
@@ -28,14 +29,31 @@ class ProfileViewModel(
     private val _activityUiState = MutableStateFlow(MyActivityUiState())
     val activityUiState: StateFlow<MyActivityUiState> = _activityUiState.asStateFlow()
 
-    fun loadProfile() {
+    fun ensureLoaded() {
+        if (hasLoaded) return
+        hasLoaded = true
+        loadProfile()
+    }
+
+    fun refreshProfile() {
+        loadProfile(isRefresh = true)
+    }
+
+    private fun loadProfile(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _profileUiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _profileUiState.update {
+                it.copy(
+                    isLoading = if (isRefresh) it.isLoading else true,
+                    isRefreshing = isRefresh,
+                    errorMessage = null
+                )
+            }
             repository.getMe()
                 .onSuccess { user ->
                     _profileUiState.update {
                         it.copy(
                             isLoading = false,
+                            isRefreshing = false,
                             userName = user.name?.ifBlank { "Citizen User" } ?: "Citizen User",
                             locationText = user.district?.name ?: user.jurisdiction?.name ?: "Location unavailable",
                             profileImageUrl = user.profileImageUrl
@@ -45,7 +63,12 @@ class ProfileViewModel(
                 .onFailure { error ->
                     val expired = error.message?.contains("401") == true || error.message?.contains("403") == true
                     _profileUiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message, sessionExpired = expired)
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            errorMessage = error.message,
+                            sessionExpired = expired
+                        )
                     }
                 }
         }
@@ -144,6 +167,7 @@ class ProfileViewModel(
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val userName: String = "Citizen User",
     val locationText: String = "Location unavailable",
     val profileImageUrl: String? = null,

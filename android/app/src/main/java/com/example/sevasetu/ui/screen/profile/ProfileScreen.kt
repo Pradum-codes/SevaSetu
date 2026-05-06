@@ -79,6 +79,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.activity.compose.LocalActivity
+import androidx.lifecycle.ViewModelStoreOwner
 import coil.compose.AsyncImage
 import com.example.sevasetu.data.remote.dto.UserActivityEventDto
 import com.example.sevasetu.data.repository.UserRepository
@@ -112,7 +115,9 @@ fun ProfileScreenContent(
     onNavigateLogin: () -> Unit
 ) {
     val context = LocalContext.current
+    val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
     val viewModel: ProfileViewModel = viewModel(
+        viewModelStoreOwner = viewModelStoreOwner,
         factory = ProfileViewModelFactory(
             repository = UserRepository(NetworkModule.provideUserApi(context)),
             tokenManager = TokenManager(context)
@@ -123,9 +128,7 @@ fun ProfileScreenContent(
     val activityState by viewModel.activityUiState.collectAsState()
     var activeSheet by remember { mutableStateOf<ProfileSheet?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadProfile()
-    }
+    LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
     LaunchedEffect(uiState.sessionExpired) {
         if (uiState.sessionExpired) {
@@ -205,16 +208,22 @@ fun ProfileScreenContent(
             }
         }
     ) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refreshProfile() },
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF2F5F3))
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF2F5F3))
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -315,7 +324,7 @@ fun ProfileScreenContent(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     OutlinedButton(
-                                        onClick = viewModel::loadProfile,
+                                        onClick = viewModel::refreshProfile,
                                         modifier = Modifier.height(38.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -428,6 +437,7 @@ fun ProfileScreenContent(
                     color = Color.LightGray,
                     fontWeight = FontWeight.Medium
                 )
+                }
             }
         }
     }

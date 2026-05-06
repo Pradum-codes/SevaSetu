@@ -38,11 +38,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,8 +73,12 @@ import androidx.core.graphics.createBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.TextUnit
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.remember
+import androidx.activity.compose.LocalActivity
+import androidx.lifecycle.ViewModelStoreOwner
 import com.example.sevasetu.utils.JurisdictionConstants
-import com.example.sevasetu.utils.TokenManager
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,226 +89,17 @@ fun DashboardScreen(
     onNavigateProfile: () -> Unit,
     onNavigateIssueReport: () -> Unit
 ) {
-    val context = LocalContext.current
-    val issueRepository = remember { IssueRepository(ApiService.issueApi(context)) }
-    val scope = rememberCoroutineScope()
-    var mapUiState by remember { mutableStateOf<MapUiState>(MapUiState.Loading) }
-    var dashboardUiState by remember { mutableStateOf<DashboardUiState>(DashboardUiState.Loading) }
-    var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
-    var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
-    var voteInFlight by remember { mutableStateOf(false) }
-    var selectedIssueTimeline by remember { mutableStateOf<List<TimelineUpdateDto>?>(null) }
-    var isTimelineLoading by remember { mutableStateOf(false) }
+    val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
+    val viewModel: DashboardViewModel = viewModel(viewModelStoreOwner = viewModelStoreOwner)
+    val mapUiState by viewModel.mapUiState.collectAsState()
+    val dashboardUiState by viewModel.dashboardUiState.collectAsState()
+    val selectedIssue by viewModel.selectedIssue.collectAsState()
+    val voteInFlight by viewModel.voteInFlight.collectAsState()
+    val selectedIssueTimeline by viewModel.selectedIssueTimeline.collectAsState()
+    val isTimelineLoading by viewModel.isTimelineLoading.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
-    LaunchedEffect(selectedIssue?.id) {
-        val issueId = selectedIssue?.id
-        if (issueId != null) {
-            isTimelineLoading = true
-            selectedIssueTimeline = null
-            issueRepository.getIssueTimeline(issueId)
-                .onSuccess { response ->
-                    selectedIssueTimeline = response.timeline
-                }
-                .onFailure {
-                    // Fail silently or log
-                }
-            isTimelineLoading = false
-        }
-    }
-
-    val handleVote: (IssueDto) -> Unit = { issue ->
-        if (!voteInFlight) {
-            voteInFlight = true
-            scope.launch {
-                issueRepository.voteIssue(issue.id)
-                    .onSuccess { response ->
-                        // Update local vote tracker
-                        val tokenManager = TokenManager(context)
-                        if (response.voted) {
-                            tokenManager.addVotedIssue(issue.id)
-                        } else {
-                            tokenManager.removeVotedIssue(issue.id)
-                        }
-
-                        // Update selectedIssue to reflect changes in modal
-                        if (selectedIssue?.id == issue.id) {
-                            selectedIssue = selectedIssue?.copy(
-                                voteCount = response.totalVotes,
-                                isVotedByMe = response.voted
-                            )
-                        }
-
-                        // Also update it in the map lists
-                        if (mapUiState is MapUiState.Success) {
-                            val success = mapUiState as MapUiState.Success
-                            val updatedFullIssues = success.fullIssues.map {
-                                if (it.id == issue.id) it.copy(
-                                    voteCount = response.totalVotes,
-                                    isVotedByMe = response.voted
-                                ) else it
-                            }
-                            mapUiState = success.copy(fullIssues = updatedFullIssues)
-                        }
-                    }
-                    .onFailure {
-                        Toast.makeText(
-                            context,
-                            "Failed to update vote: ${it.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                voteInFlight = false
-            }
-        }
-    }
-
-    // Get user's district from TokenManager
-    val userDistrictId = remember {
-        val tokenManager = TokenManager(context)
-        tokenManager.getUserDistrict()?.takeIf { it.isNotBlank() } ?: DEFAULT_NEARBY_DISTRICT_ID
-    }
-
-    val userDistrictName = remember(userDistrictId) {
-        JurisdictionConstants.DISTRICTS
-            .find { it.id == userDistrictId }?.name ?: "Unknown"
-    }
-
-    val userDistrictCoords = remember(userDistrictId) {
-        val dist = JurisdictionConstants.DISTRICTS
-            .find { it.id == userDistrictId }
-        if (dist != null) GeoPoint(dist.lat, dist.lng) else GeoPoint(31.6340, 74.8723)
-    }
-
-    val mapCenterPoint = remember(currentLocation, userDistrictCoords) {
-        currentLocation?.let { GeoPoint(it.first, it.second) } ?: userDistrictCoords
-    }
-
-    val fetchCurrentLocation: (callback: (Pair<Double, Double>?) -> Unit) -> Unit = { callback ->
-        try {
-            val hasLocationPermission = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-
-            if (hasLocationPermission) {
-                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                val tokenSource = CancellationTokenSource()
-                fusedLocationClient
-                    .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, tokenSource.token)
-                    .addOnSuccessListener { location: Location? ->
-                        if (location != null) {
-                            callback(Pair(location.latitude, location.longitude))
-                        } else {
-                            fusedLocationClient.lastLocation
-                                .addOnSuccessListener { lastLocation: Location? ->
-                                    callback(lastLocation?.let { Pair(it.latitude, it.longitude) })
-                                }
-                                .addOnFailureListener {
-                                    callback(null)
-                                }
-                        }
-                    }
-                    .addOnFailureListener {
-                        fusedLocationClient.lastLocation
-                            .addOnSuccessListener { lastLocation: Location? ->
-                                callback(lastLocation?.let { Pair(it.latitude, it.longitude) })
-                            }
-                            .addOnFailureListener {
-                                callback(null)
-                            }
-                    }
-            } else {
-                callback(null)
-            }
-        } catch (_: Exception) {
-            callback(null)
-        }
-    }
-
-    val fetchNearbyIssues: () -> Unit = {
-        scope.launch {
-            mapUiState = MapUiState.Loading
-
-            // Try to get current location first
-            fetchCurrentLocation { location ->
-                scope.launch {
-                    currentLocation = location
-                    issueRepository.getNearbyIssues(
-                        lat = location?.first,
-                        lng = location?.second,
-                        radiusKm = 5.0,
-                        districtId = userDistrictId
-                    )
-                        .onSuccess { response ->
-                            val tokenManager = TokenManager(context)
-                            val votedSet = tokenManager.getVotedIssues()
-                            val enrichedIssues = response.issues.map {
-                                it.copy(isVotedByMe = it.isVotedByMe ?: votedSet.contains(it.id))
-                            }
-                            
-                            val mapIssues = enrichedIssues.mapNotNull { it.toMapIssue() }
-                            val searchMode = response.searchMode
-                            val displayInfo = when {
-                                searchMode == "location" && response.location != null -> {
-                                    "Location-based search (${response.location.radiusKm}km)"
-                                }
-                                searchMode == "district" && response.district != null -> {
-                                    "District-based search (${response.district.name})"
-                                }
-                                else -> "Nearby Issues"
-                            }
-                            mapUiState = MapUiState.Success(
-                                mapIssues,
-                                displayInfo,
-                                searchMode,
-                                enrichedIssues
-                            )
-                        }
-                        .onFailure { throwable ->
-                            mapUiState = MapUiState.Error(
-                                throwable.message ?: "Unable to load nearby issues"
-                            )
-                        }
-                }
-            }
-        }
-    }
-
-    val fetchDashboard: () -> Unit = {
-        scope.launch {
-            dashboardUiState = DashboardUiState.Loading
-
-            fetchCurrentLocation { location ->
-                scope.launch {
-                    currentLocation = location
-                    issueRepository.getDashboard(
-                        lat = location?.first,
-                        lng = location?.second,
-                        radiusKm = 5.0,
-                        districtId = userDistrictId,
-                        insightWindowDays = 30
-                    )
-                        .onSuccess { response ->
-                            dashboardUiState = DashboardUiState.Success(response)
-                        }
-                        .onFailure { throwable ->
-                            dashboardUiState = DashboardUiState.Error(
-                                throwable.message ?: "Unable to load dashboard"
-                            )
-                        }
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        fetchNearbyIssues()
-        fetchDashboard()
-    }
+    LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
     Scaffold(
         topBar = {
@@ -402,14 +194,19 @@ fun DashboardScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
             modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .background(Color(0xFFF8F9FA))
-                .padding(16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .background(Color(0xFFF8F9FA))
+                    .padding(16.dp)
+            ) {
             // Search Bar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -436,9 +233,9 @@ fun DashboardScreen(
 
             DashboardMapSection(
                 mapUiState = mapUiState,
-                userDistrictName = userDistrictName,
-                centerPoint = mapCenterPoint,
-                onRetry = fetchNearbyIssues
+                userDistrictName = viewModel.userDistrictName,
+                centerPoint = viewModel.mapCenterPoint,
+                onRetry = { viewModel.refresh() }
             )
 
             Spacer(Modifier.height(16.dp))
@@ -539,9 +336,10 @@ fun DashboardScreen(
 
             NearbyIssuesListSection(
                 mapUiState = mapUiState,
-                onRetry = fetchNearbyIssues,
-                onIssueClick = { selectedIssue = it }
+                onRetry = { viewModel.refresh() },
+                onIssueClick = { viewModel.openIssue(it) }
             )
+        }
         }
     }
 
@@ -549,8 +347,8 @@ fun DashboardScreen(
     if (selectedIssue != null) {
         IssueDetailModal(
             issue = selectedIssue!!,
-            onDismiss = { selectedIssue = null },
-            onVoteClick = { handleVote(selectedIssue!!) },
+            onDismiss = { viewModel.dismissIssueModal() },
+            onVoteClick = { viewModel.handleVote() },
             isVoteLoading = voteInFlight,
             timeline = selectedIssueTimeline,
             isTimelineLoading = isTimelineLoading
@@ -1150,7 +948,7 @@ private fun IssueDto.resolvePreviewImageUrl(): String? {
         ?: imageUrl?.trim()?.takeIf(String::isNotEmpty)
 }
 
-private sealed interface MapUiState {
+sealed interface MapUiState {
     data object Loading : MapUiState
     data class Success(
         val issues: List<MapIssue>,
@@ -1161,13 +959,13 @@ private sealed interface MapUiState {
     data class Error(val message: String) : MapUiState
 }
 
-private sealed interface DashboardUiState {
+sealed interface DashboardUiState {
     data object Loading : DashboardUiState
     data class Success(val data: DashboardResponse) : DashboardUiState
     data class Error(val message: String) : DashboardUiState
 }
 
-private data class MapIssue(
+data class MapIssue(
     val id: String,
     val title: String,
     val addressText: String?,
@@ -1177,7 +975,7 @@ private data class MapIssue(
     val priority: String?
 )
 
-private const val DEFAULT_NEARBY_DISTRICT_ID = "20000001-0000-0000-0000-000000000000"
+const val DEFAULT_NEARBY_DISTRICT_ID = "20000001-0000-0000-0000-000000000000"
 
 @Composable
 fun CategoryChip(label: String, icon: ImageVector) {

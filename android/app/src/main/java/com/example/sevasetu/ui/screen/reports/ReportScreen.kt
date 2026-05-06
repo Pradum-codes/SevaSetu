@@ -20,12 +20,8 @@ import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +39,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.example.sevasetu.data.remote.dto.IssueDto
-import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
-import com.example.sevasetu.data.repository.IssueRepository
-import com.example.sevasetu.network.ApiService
 import com.example.sevasetu.ui.common.IssueDetailModal
 import com.example.sevasetu.ui.theme.SevaSetuTheme
-import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.activity.compose.LocalActivity
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -62,116 +58,17 @@ fun MyReportsScreen(
     onNavigateProfile: () -> Unit,
     onNavigateIssueReport: () -> Unit
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val isPreview = LocalInspectionMode.current
-    val issueRepository = remember(context) { IssueRepository(ApiService.issueApi(context)) }
+    val viewModelStoreOwner = LocalActivity.current as? ViewModelStoreOwner ?: return
+    val viewModel: ReportsViewModel = viewModel(viewModelStoreOwner = viewModelStoreOwner)
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val selectedIssue by viewModel.selectedIssue.collectAsState()
+    val voteInFlight by viewModel.voteInFlight.collectAsState()
+    val selectedIssueTimeline by viewModel.selectedIssueTimeline.collectAsState()
+    val isTimelineLoading by viewModel.isTimelineLoading.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
-    var selectedFilter by rememberSaveable { mutableStateOf(ReportStatusFilter.ALL) }
-    var uiState by remember { mutableStateOf(ReportsUiState(isLoading = true)) }
-    var selectedIssue by remember { mutableStateOf<IssueDto?>(null) }
-    var voteInFlight by remember { mutableStateOf(false) }
-    var selectedIssueTimeline by remember { mutableStateOf<List<TimelineUpdateDto>?>(null) }
-    var isTimelineLoading by remember { mutableStateOf(false) }
-
-    LaunchedEffect(selectedIssue?.id) {
-        val issueId = selectedIssue?.id
-        if (issueId != null) {
-            isTimelineLoading = true
-            selectedIssueTimeline = null
-            issueRepository.getIssueTimeline(issueId)
-                .onSuccess { response ->
-                    selectedIssueTimeline = response.timeline
-                }
-                .onFailure {
-                    // Fail silently
-                }
-            isTimelineLoading = false
-        }
-    }
-
-    val handleVote: (IssueDto) -> Unit = { issue ->
-        if (!voteInFlight) {
-            voteInFlight = true
-            scope.launch {
-                issueRepository.voteIssue(issue.id)
-                    .onSuccess { response ->
-                        // Update local vote tracker
-                        val tokenManager = com.example.sevasetu.utils.TokenManager(context)
-                        if (response.voted) {
-                            tokenManager.addVotedIssue(issue.id)
-                        } else {
-                            tokenManager.removeVotedIssue(issue.id)
-                        }
-
-                        if (selectedIssue?.id == issue.id) {
-                            selectedIssue = selectedIssue?.copy(
-                                voteCount = response.totalVotes,
-                                isVotedByMe = response.voted
-                            )
-                        }
-
-                        // Update in uiState lists
-                        val updatedFullIssues = uiState.fullIssues.map {
-                            if (it.id == issue.id) it.copy(
-                                voteCount = response.totalVotes,
-                                isVotedByMe = response.voted
-                            ) else it
-                        }
-                        uiState = uiState.copy(
-                            fullIssues = updatedFullIssues,
-                            reports = updatedFullIssues.map { it.toReportListItem() }
-                        )
-                    }
-                    .onFailure {
-                        android.widget.Toast.makeText(
-                            context,
-                            "Failed to update vote: ${it.message}",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                voteInFlight = false
-            }
-        }
-    }
-
-    val refreshReports: () -> Unit = {
-        if (isPreview) {
-            uiState = ReportsUiState(reports = previewReports())
-        } else {
-            scope.launch {
-                uiState = uiState.copy(isLoading = true, errorMessage = null)
-                val result = issueRepository.getMyReportedIssues(
-                    page = 1,
-                    limit = 50,
-                    status = selectedFilter.apiValue
-                )
-
-                result.onSuccess { response ->
-                    val tokenManager = com.example.sevasetu.utils.TokenManager(context)
-                    val votedSet = tokenManager.getVotedIssues()
-                    val enrichedIssues = response.issues.map {
-                        it.copy(isVotedByMe = it.isVotedByMe ?: votedSet.contains(it.id))
-                    }
-
-                    uiState = ReportsUiState(
-                        isLoading = false,
-                        reports = enrichedIssues.map { it.toReportListItem() },
-                        fullIssues = enrichedIssues
-                    )
-                }.onFailure { throwable ->
-                    uiState = ReportsUiState(
-                        isLoading = false,
-                        errorMessage = throwable.message ?: "Unable to load reports"
-                    )
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(selectedFilter, isPreview) {
-        refreshReports()
-    }
+    LaunchedEffect(Unit) { viewModel.ensureLoaded() }
 
     Scaffold(
         topBar = {
@@ -251,13 +148,19 @@ fun MyReportsScreen(
             }
         }
     ) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refresh() },
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF2F5F3)) // Distinct background for card contrast
-                .padding(horizontal = 20.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF2F5F3))
+                    .padding(horizontal = 20.dp)
+            ) {
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
@@ -305,7 +208,7 @@ fun MyReportsScreen(
                                 .height(36.dp)
                                 .clickable {
                                     if (selectedFilter != filter) {
-                                        selectedFilter = filter
+                                        viewModel.onFilterChanged(filter)
                                     }
                                 },
                             border = BorderStroke(1.dp, if (isSelected) Color(0xFF006D47) else Color(0xFFD1D5D3))
@@ -357,7 +260,7 @@ fun MyReportsScreen(
                                     fontSize = 14.sp
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
-                                TextButton(onClick = refreshReports) {
+                                TextButton(onClick = { viewModel.refresh() }) {
                                     Text("Retry")
                                 }
                             }
@@ -388,7 +291,7 @@ fun MyReportsScreen(
                         val fullIssue = uiState.fullIssues.find { it.id == report.id }
                         ReportIssueCard(
                             report = report,
-                            onClick = { fullIssue?.let { selectedIssue = it } }
+                            onClick = { fullIssue?.let { viewModel.openIssue(it) } }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -453,6 +356,7 @@ fun MyReportsScreen(
                 }
                 Spacer(modifier = Modifier.height(40.dp))
             }
+            }
         }
     }
 
@@ -460,8 +364,8 @@ fun MyReportsScreen(
     if (selectedIssue != null) {
         IssueDetailModal(
             issue = selectedIssue!!,
-            onDismiss = { selectedIssue = null },
-            onVoteClick = { handleVote(selectedIssue!!) },
+            onDismiss = { viewModel.dismissIssueModal() },
+            onVoteClick = { viewModel.handleVote() },
             isVoteLoading = voteInFlight,
             timeline = selectedIssueTimeline,
             isTimelineLoading = isTimelineLoading
@@ -469,7 +373,7 @@ fun MyReportsScreen(
     }
 }
 
-private enum class ReportStatusFilter(val label: String, val apiValue: String?) {
+enum class ReportStatusFilter(val label: String, val apiValue: String?) {
     ALL("ALL REPORTS", null),
     OPEN("OPEN", "OPEN"),
     IN_PROGRESS("IN PROGRESS", "IN_PROGRESS"),
@@ -477,14 +381,14 @@ private enum class ReportStatusFilter(val label: String, val apiValue: String?) 
     REJECTED("REJECTED", "REJECTED")
 }
 
-private data class ReportsUiState(
+data class ReportsUiState(
     val isLoading: Boolean = false,
     val reports: List<ReportListItem> = emptyList(),
     val fullIssues: List<IssueDto> = emptyList(),
     val errorMessage: String? = null
 )
 
-private data class ReportListItem(
+data class ReportListItem(
     val id: String,
     val title: String,
     val reportedDateLabel: String,
@@ -607,51 +511,6 @@ private fun reportStatusColors(status: String): Triple<Color, Color, Color> {
         "REJECTED" -> Triple(Color(0xFFFFF3E0), Color(0xFFEF6C00), Color(0xFFFFE0B2))
         else -> Triple(Color.LightGray, Color.DarkGray, Color.Gray)
     }
-}
-
-private fun IssueDto.toReportListItem(): ReportListItem {
-    val normalizedStatus = status?.uppercase(Locale.ROOT) ?: "OPEN"
-    return ReportListItem(
-        id = id,
-        title = title.ifBlank { "Untitled issue" },
-        reportedDateLabel = createdAt.toReportDateLabel(),
-        statusLabel = normalizedStatus.replace('_', ' '),
-        statusRaw = normalizedStatus,
-        imageUrl = resolvePreviewImageUrl(),
-        voteCount = voteCount,
-        isVotedByMe = isVotedByMe == true
-    )
-}
-
-private fun IssueDto.resolvePreviewImageUrl(): String? {
-    return images.firstNotNullOfOrNull { it.imageUrl?.trim()?.takeIf(String::isNotEmpty) }
-        ?: imageUrls?.firstNotNullOfOrNull { it.trim().takeIf(String::isNotEmpty) }
-        ?: imageUrl?.trim()?.takeIf(String::isNotEmpty)
-}
-
-private fun String?.toReportDateLabel(): String {
-    if (this.isNullOrBlank()) return "date unavailable"
-
-    val clean = trim()
-    val patterns = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd"
-    )
-    val output = SimpleDateFormat("dd MMM, yyyy", Locale.US)
-
-    patterns.forEach { pattern ->
-        val parser = SimpleDateFormat(pattern, Locale.US).apply {
-            isLenient = false
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val date = runCatching { parser.parse(clean) }.getOrNull()
-        if (date != null) {
-            return output.format(date)
-        }
-    }
-
-    return clean.take(10)
 }
 
 private fun previewReports(): List<ReportListItem> {
