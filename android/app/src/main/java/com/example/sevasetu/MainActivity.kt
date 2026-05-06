@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -252,6 +254,17 @@ private val tabRoutes = setOf(
     AppRoute.Alerts.route,
     AppRoute.Profile.route
 )
+private val tabRouteOrder = listOf(
+    AppRoute.Home.route,
+    AppRoute.Reports.route,
+    AppRoute.Alerts.route,
+    AppRoute.Profile.route
+)
+
+private const val TAB_FADE_MS = 600
+private const val TAB_SLIDE_MS = 600
+private const val SCREEN_ENTER_MS = 600
+private const val SCREEN_EXIT_MS = 600
 
 private fun NavBackStackEntry?.routeOrEmpty(): String = this?.destination?.route.orEmpty()
 
@@ -259,48 +272,80 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.smoothEnterTransit
     initialState: NavBackStackEntry,
     targetState: NavBackStackEntry
 ) = if (initialState.routeOrEmpty() in tabRoutes && targetState.routeOrEmpty() in tabRoutes) {
-    fadeIn(animationSpec = tween(120))
+    val movingForward = tabRouteOrder.indexOf(targetState.routeOrEmpty()) >=
+        tabRouteOrder.indexOf(initialState.routeOrEmpty())
+    slideInHorizontally(
+        animationSpec = tween(durationMillis = TAB_SLIDE_MS, easing = FastOutSlowInEasing),
+        initialOffsetX = { fullWidth ->
+            val offset = (fullWidth * 0.08f).toInt()
+            if (movingForward) offset else -offset
+        }
+    ) + fadeIn(animationSpec = tween(durationMillis = TAB_FADE_MS, easing = LinearOutSlowInEasing))
 } else {
     slideInHorizontally(
-        animationSpec = tween(220),
-        initialOffsetX = { fullWidth -> fullWidth / 5 }
-    ) + fadeIn(animationSpec = tween(200))
+        animationSpec = tween(durationMillis = SCREEN_ENTER_MS, easing = FastOutSlowInEasing),
+        initialOffsetX = { fullWidth -> (fullWidth * 0.16f).toInt() }
+    ) + fadeIn(animationSpec = tween(durationMillis = SCREEN_ENTER_MS, easing = LinearOutSlowInEasing))
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.smoothExitTransition(
     initialState: NavBackStackEntry,
     targetState: NavBackStackEntry
 ) = if (initialState.routeOrEmpty() in tabRoutes && targetState.routeOrEmpty() in tabRoutes) {
-    fadeOut(animationSpec = tween(120))
+    val movingForward = tabRouteOrder.indexOf(targetState.routeOrEmpty()) >=
+        tabRouteOrder.indexOf(initialState.routeOrEmpty())
+    slideOutHorizontally(
+        animationSpec = tween(durationMillis = TAB_SLIDE_MS, easing = FastOutSlowInEasing),
+        targetOffsetX = { fullWidth ->
+            val offset = (fullWidth * 0.08f).toInt()
+            if (movingForward) -offset else offset
+        }
+    ) + fadeOut(animationSpec = tween(durationMillis = TAB_FADE_MS, easing = FastOutSlowInEasing))
 } else {
     slideOutHorizontally(
-        animationSpec = tween(220),
-        targetOffsetX = { fullWidth -> -fullWidth / 5 }
-    ) + fadeOut(animationSpec = tween(160))
+        animationSpec = tween(durationMillis = SCREEN_EXIT_MS, easing = FastOutSlowInEasing),
+        targetOffsetX = { fullWidth -> -(fullWidth * 0.12f).toInt() }
+    ) + fadeOut(animationSpec = tween(durationMillis = SCREEN_EXIT_MS, easing = FastOutSlowInEasing))
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.smoothPopEnterTransition(
     initialState: NavBackStackEntry,
     targetState: NavBackStackEntry
 ) = if (initialState.routeOrEmpty() in tabRoutes && targetState.routeOrEmpty() in tabRoutes) {
-    fadeIn(animationSpec = tween(120))
+    val movingBack = tabRouteOrder.indexOf(targetState.routeOrEmpty()) <=
+        tabRouteOrder.indexOf(initialState.routeOrEmpty())
+    slideInHorizontally(
+        animationSpec = tween(durationMillis = TAB_SLIDE_MS, easing = FastOutSlowInEasing),
+        initialOffsetX = { fullWidth ->
+            val offset = (fullWidth * 0.08f).toInt()
+            if (movingBack) -offset else offset
+        }
+    ) + fadeIn(animationSpec = tween(durationMillis = TAB_FADE_MS, easing = LinearOutSlowInEasing))
 } else {
     slideInHorizontally(
-        animationSpec = tween(220),
-        initialOffsetX = { fullWidth -> -fullWidth / 5 }
-    ) + fadeIn(animationSpec = tween(200))
+        animationSpec = tween(durationMillis = SCREEN_ENTER_MS, easing = FastOutSlowInEasing),
+        initialOffsetX = { fullWidth -> -(fullWidth * 0.16f).toInt() }
+    ) + fadeIn(animationSpec = tween(durationMillis = SCREEN_ENTER_MS, easing = LinearOutSlowInEasing))
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.smoothPopExitTransition(
     initialState: NavBackStackEntry,
     targetState: NavBackStackEntry
 ) = if (initialState.routeOrEmpty() in tabRoutes && targetState.routeOrEmpty() in tabRoutes) {
-    fadeOut(animationSpec = tween(120))
+    val movingBack = tabRouteOrder.indexOf(targetState.routeOrEmpty()) <=
+        tabRouteOrder.indexOf(initialState.routeOrEmpty())
+    slideOutHorizontally(
+        animationSpec = tween(durationMillis = TAB_SLIDE_MS, easing = FastOutSlowInEasing),
+        targetOffsetX = { fullWidth ->
+            val offset = (fullWidth * 0.08f).toInt()
+            if (movingBack) offset else -offset
+        }
+    ) + fadeOut(animationSpec = tween(durationMillis = TAB_FADE_MS, easing = FastOutSlowInEasing))
 } else {
     slideOutHorizontally(
-        animationSpec = tween(220),
-        targetOffsetX = { fullWidth -> fullWidth / 5 }
-    ) + fadeOut(animationSpec = tween(160))
+        animationSpec = tween(durationMillis = SCREEN_EXIT_MS, easing = FastOutSlowInEasing),
+        targetOffsetX = { fullWidth -> (fullWidth * 0.12f).toInt() }
+    ) + fadeOut(animationSpec = tween(durationMillis = SCREEN_EXIT_MS, easing = FastOutSlowInEasing))
 }
 
 private fun NavHostController.selectTab(route: String) {
