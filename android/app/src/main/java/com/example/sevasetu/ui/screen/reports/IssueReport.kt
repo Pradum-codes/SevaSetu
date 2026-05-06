@@ -442,7 +442,8 @@ fun IssueReportScreen(
         else -> "Using registered district fallback"
     }
 
-    Scaffold(
+    IssueReportHost(
+        showAppBars = showAppBars,
         topBar = {
             if (showAppBars) TopAppBar(
                 title = {
@@ -1009,6 +1010,25 @@ fun IssueReportScreen(
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun IssueReportHost(
+    showAppBars: Boolean,
+    topBar: @Composable () -> Unit,
+    bottomBar: @Composable () -> Unit,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    if (showAppBars) {
+        Scaffold(
+            topBar = topBar,
+            bottomBar = bottomBar
+        ) { innerPadding ->
+            content(innerPadding)
+        }
+    } else {
+        content(PaddingValues())
     }
 }
 
