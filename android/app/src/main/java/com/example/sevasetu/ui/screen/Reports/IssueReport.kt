@@ -57,6 +57,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -122,13 +123,16 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+import com.example.sevasetu.utils.ThemePreferenceManager
 
 class IssueReport : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 IssueReportScreen()
             }
         }
@@ -460,7 +464,7 @@ fun IssueReportScreen() {
                 title = {
                     Text(
                         "Report Issue",
-                        color = Color(0xFF006D47),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -470,7 +474,7 @@ fun IssueReportScreen() {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF006D47)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -480,22 +484,22 @@ fun IssueReportScreen() {
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = "Profile",
                                 modifier = Modifier.align(Alignment.Center).size(24.dp),
-                                tint = Color(0xFF006D47)
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = false,
                     onClick = { context.startActivity(Intent(context, Dashboard::class.java)) },
@@ -508,9 +512,9 @@ fun IssueReportScreen() {
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF00875A),
-                        selectedTextColor = Color(0xFF00875A),
-                        indicatorColor = Color(0xFFE8F5E9)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 )
                 NavigationBarItem(
@@ -532,7 +536,7 @@ fun IssueReportScreen() {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF8FAF9))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp)
         ) {
             item {
@@ -541,7 +545,7 @@ fun IssueReportScreen() {
                     text = "NEW SUBMISSION",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF006D47),
+                    color = MaterialTheme.colorScheme.primary,
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -549,23 +553,23 @@ fun IssueReportScreen() {
                     text = "Identify the Civic Concern",
                     fontSize = 30.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1A1C1A),
+                    color = MaterialTheme.colorScheme.onBackground,
                     lineHeight = 36.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "Your report helps us keep our neighborhood thriving and safe.",
                     fontSize = 15.sp,
-                    color = Color(0xFF5F635F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 22.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (formError != null) {
                     MessageCard(
-                        backgroundColor = Color(0xFFFFEBEE),
-                        borderColor = Color(0xFFFFCDD2),
-                        textColor = Color(0xFFC62828),
+                        backgroundColor = MaterialTheme.colorScheme.errorContainer,
+                        borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.2f),
+                        textColor = MaterialTheme.colorScheme.onErrorContainer,
                         text = formError!!
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -573,9 +577,9 @@ fun IssueReportScreen() {
 
                 if (formMessage != null) {
                     MessageCard(
-                        backgroundColor = Color(0xFFE8F5E9),
-                        borderColor = Color(0xFFC8E6C9),
-                        textColor = Color(0xFF2E7D32),
+                        backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        textColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         text = formMessage!!
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -748,7 +752,7 @@ fun IssueReportScreen() {
                 Text(
                     text = "${selectedImageUris.size}/$MAX_REPORT_IMAGES photos selected",
                     fontSize = 12.sp,
-                    color = Color(0xFF747974)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -774,10 +778,10 @@ fun IssueReportScreen() {
                         .shadow(
                             elevation = 2.dp,
                             shape = RoundedCornerShape(24.dp),
-                            ambientColor = Color.Black.copy(alpha = 0.1f)
+                            ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         ),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F3F1))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -789,13 +793,13 @@ fun IssueReportScreen() {
                                 text = "DETECTED DISTRICT",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF747974)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = displayAreaType,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF006D47)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -803,7 +807,7 @@ fun IssueReportScreen() {
                             Icon(
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
-                                tint = Color(0xFF006D47),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -811,7 +815,7 @@ fun IssueReportScreen() {
                                 text = locationDisplayName,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1A1C1A),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -820,7 +824,7 @@ fun IssueReportScreen() {
                         Text(
                             text = jurisdictionSummary,
                             fontSize = 12.sp,
-                            color = Color(0xFF5F635F)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         LocationDetailRow(label = "State", value = displayState)
@@ -835,9 +839,9 @@ fun IssueReportScreen() {
                         if (isUsingProfileDistrictFallback) {
                             Spacer(modifier = Modifier.height(8.dp))
                             MessageCard(
-                                backgroundColor = Color(0xFFFFF8E1),
-                                borderColor = Color(0xFFFFECB3),
-                                textColor = Color(0xFF8A5A00),
+                                backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                                borderColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                                textColor = MaterialTheme.colorScheme.onSecondaryContainer,
                                 text = "Current district is outside supported areas; using your registered district for routing."
                             )
                         }
@@ -847,7 +851,7 @@ fun IssueReportScreen() {
                                 .fillMaxWidth()
                                 .height(150.dp)
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFF0D2421))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
                         ) {
                             Canvas(modifier = Modifier.fillMaxSize()) {
                                 val gridColor = Color.White.copy(alpha = 0.05f)
@@ -867,7 +871,7 @@ fun IssueReportScreen() {
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
                                 modifier = Modifier.align(Alignment.Center).size(52.dp).padding(bottom = 10.dp),
-                                tint = Color(0xFF4DB6AC)
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -888,7 +892,7 @@ fun IssueReportScreen() {
                         Text(
                             text = locationStatus,
                             fontSize = 12.sp,
-                            color = Color(0xFF5F635F)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -996,11 +1000,11 @@ fun IssueReportScreen() {
                         .shadow(
                             elevation = 8.dp,
                             shape = RoundedCornerShape(32.dp),
-                            spotColor = Color(0xFF00875A).copy(alpha = 0.5f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         ),
                     shape = RoundedCornerShape(32.dp),
                     enabled = !isSubmitting,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00875A))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -1015,7 +1019,7 @@ fun IssueReportScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                     fontSize = 12.sp,
-                    color = Color(0xFF747974)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(40.dp))
             }
@@ -1029,7 +1033,7 @@ private fun SectionTitle(text: String) {
         text = text,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF747974)
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
@@ -1072,13 +1076,13 @@ private fun LocationDetailRow(
             modifier = Modifier.width(82.dp),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF747974)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
             modifier = Modifier.weight(1f),
             fontSize = 12.sp,
-            color = Color(0xFF1A1C1A),
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -1095,14 +1099,15 @@ private fun UploadActionCard(
     Box(
         modifier = modifier
             .height(130.dp)
-            .shadow(elevation = 1.dp, shape = RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
+            .shadow(elevation = 1.dp, shape = RoundedCornerShape(24.dp), ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
             .clip(RoundedCornerShape(24.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() }
     ) {
+        val dashColor = MaterialTheme.colorScheme.outline
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRoundRect(
-                color = Color(0xFFBCC2BC),
+                color = dashColor,
                 style = Stroke(
                     width = 1.5.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
@@ -1119,13 +1124,13 @@ private fun UploadActionCard(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE8F5E9)),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF006D47), modifier = Modifier.size(26.dp))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF424242))
+            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -1168,12 +1173,12 @@ private fun LocationValueCard(
     Card(
         modifier = Modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF747974))
+            Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1A1C1A))
+            Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }

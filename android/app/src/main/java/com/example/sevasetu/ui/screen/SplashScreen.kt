@@ -49,13 +49,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.HttpURLConnection
 import java.net.URL
+import com.example.sevasetu.utils.ThemePreferenceManager
 
 class SplashScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 SplashScreenContent(onNavigate = {
                     startActivity(Intent(this, Login::class.java))
                     finish()

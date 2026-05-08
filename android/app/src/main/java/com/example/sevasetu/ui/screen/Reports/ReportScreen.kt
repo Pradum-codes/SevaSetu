@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.example.sevasetu.Dashboard
+import com.example.sevasetu.utils.ThemePreferenceManager
+import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.data.remote.dto.IssueDto
 import com.example.sevasetu.data.remote.dto.TimelineUpdateDto
 import com.example.sevasetu.data.repository.IssueRepository
@@ -65,9 +67,11 @@ class ReportScreen : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 MyReportsScreen()
             }
         }
@@ -195,7 +199,7 @@ fun MyReportsScreen() {
                 title = {
                     Text(
                         "My Reports",
-                        color = Color(0xFF00875A),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -213,22 +217,22 @@ fun MyReportsScreen() {
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = "Profile",
                                 modifier = Modifier.align(Alignment.Center).size(24.dp),
-                                tint = Color(0xFF00875A)
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
@@ -243,9 +247,9 @@ fun MyReportsScreen() {
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF00875A),
-                        selectedTextColor = Color(0xFF00875A),
-                        indicatorColor = Color(0xFFE8F5E9)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 )
                 NavigationBarItem(
@@ -271,7 +275,7 @@ fun MyReportsScreen() {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF2F5F3)) // Distinct background for card contrast
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp)
         ) {
             item {
@@ -280,27 +284,33 @@ fun MyReportsScreen() {
                     text = "My Reports",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Tracking your contributions to a cleaner city.",
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Search Bar
                 Column {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text("Search reports...", color = Color.LightGray, fontSize = 16.sp)
+                        Text("Search reports...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), fontSize = 16.sp)
                     }
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), thickness = 1.dp)
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -316,7 +326,7 @@ fun MyReportsScreen() {
                         val isSelected = selectedFilter == filter
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFF006D47) else Color.White,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                             modifier = Modifier
                                 .height(36.dp)
                                 .clickable {
@@ -324,7 +334,7 @@ fun MyReportsScreen() {
                                         selectedFilter = filter
                                     }
                                 },
-                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF006D47) else Color(0xFFD1D5D3))
+                            border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
                         ) {
                             Box(
                                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -332,7 +342,7 @@ fun MyReportsScreen() {
                             ) {
                                 Text(
                                     text = filter.label,
-                                    color = if (isSelected) Color.White else Color.Black,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -353,7 +363,7 @@ fun MyReportsScreen() {
                                 .padding(vertical = 48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = Color(0xFF00875A))
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -363,13 +373,13 @@ fun MyReportsScreen() {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = uiState.errorMessage.orEmpty(),
-                                    color = Color(0xFF2D2D2D),
+                                    color = MaterialTheme.colorScheme.error,
                                     fontSize = 14.sp
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -386,13 +396,13 @@ fun MyReportsScreen() {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
                             Text(
                                 text = "No reports found for this filter.",
                                 modifier = Modifier.padding(20.dp),
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp
                             )
                         }
@@ -419,14 +429,15 @@ fun MyReportsScreen() {
                         .fillMaxWidth()
                         .height(180.dp)
                         .clip(RoundedCornerShape(32.dp))
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.surface)
                         .clickable {
                             context.startActivity(Intent(context, IssueReport::class.java))
                         }
                 ) {
+                    val dashColor = MaterialTheme.colorScheme.outline
                     Canvas(modifier = Modifier.fillMaxSize().padding(1.dp)) {
                         drawRoundRect(
-                            color = Color(0xFFBDBDBD),
+                            color = dashColor,
                             style = Stroke(
                                 width = 2.dp.toPx(),
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
@@ -446,7 +457,7 @@ fun MyReportsScreen() {
                             Icons.Default.AddAPhoto,
                             contentDescription = null,
                             modifier = Modifier.size(36.dp),
-                            tint = Color.Gray
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -454,7 +465,7 @@ fun MyReportsScreen() {
                             textAlign = TextAlign.Center,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF555555),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 20.sp
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -462,7 +473,7 @@ fun MyReportsScreen() {
                             text = "Submit New Report",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00875A),
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(4.dp)
                         )
                     }
@@ -523,9 +534,9 @@ private fun ReportIssueCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, Color(0xFFD1D5D3))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -535,7 +546,7 @@ private fun ReportIssueCard(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFFF0F0F0))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (!report.imageUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -549,7 +560,7 @@ private fun ReportIssueCard(
                         Icons.Default.Image,
                         contentDescription = null,
                         modifier = Modifier.align(Alignment.Center),
-                        tint = Color.LightGray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -561,14 +572,14 @@ private fun ReportIssueCard(
                     text = report.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 18.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Reported ${report.reportedDateLabel}",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -592,14 +603,14 @@ private fun ReportIssueCard(
                 Icon(
                     if (report.isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = null,
-                    tint = if (report.isVotedByMe) Color(0xFF00875A) else Color.LightGray,
+                    tint = if (report.isVotedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = report.voteCount.toString(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (report.isVotedByMe) Color(0xFF00875A) else Color.Gray
+                    color = if (report.isVotedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -608,20 +619,21 @@ private fun ReportIssueCard(
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = Color.LightGray,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(24.dp)
             )
         }
     }
 }
 
+@Composable
 private fun reportStatusColors(status: String): Triple<Color, Color, Color> {
     return when (status.uppercase(Locale.ROOT)) {
-        "OPEN" -> Triple(Color(0xFFFFEBEE), Color(0xFFD32F2F), Color(0xFFFFCDD2))
-        "RESOLVED" -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Color(0xFFC8E6C9))
-        "IN_PROGRESS" -> Triple(Color(0xFFE0F2F1), Color(0xFF00695C), Color(0xFFB2DFDB))
-        "REJECTED" -> Triple(Color(0xFFFFF3E0), Color(0xFFEF6C00), Color(0xFFFFE0B2))
-        else -> Triple(Color.LightGray, Color.DarkGray, Color.Gray)
+        "OPEN" -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+        "RESOLVED" -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        "IN_PROGRESS" -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
+        "REJECTED" -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.outline)
+        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.outline)
     }
 }
 

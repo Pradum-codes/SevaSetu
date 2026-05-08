@@ -102,7 +102,7 @@ fun IssueDetailModal(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .fillMaxHeight(0.88f),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(24.dp),
             shadowElevation = 16.dp
         ) {
@@ -150,7 +150,7 @@ fun IssueDetailModal(
                             text = issue.description?.takeIf { it.isNotBlank() }
                                 ?: "No detailed description available.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF34423A),
+                            color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 20.sp
                         )
                     }
@@ -165,7 +165,7 @@ fun IssueDetailModal(
                                 Icon(
                                     Icons.Default.LocationOn,
                                     contentDescription = null,
-                                    tint = Color(0xFF00875A),
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
                                 )
                                 Column(
@@ -176,13 +176,13 @@ fun IssueDetailModal(
                                         text = issue.addressText?.takeIf { it.isNotBlank() }
                                             ?: "Location unavailable",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = Color(0xFF2D2D2D)
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     if (issue.hasCoordinates()) {
                                         Text(
                                             text = "Coordinates: ${formatCoordinate(issue.lat)}, ${formatCoordinate(issue.lng)}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF6E7C73)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -203,7 +203,7 @@ fun IssueDetailModal(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFFE7EEE9))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
 
                 Row(
                     modifier = Modifier
@@ -228,7 +228,7 @@ fun IssueDetailModal(
                                 .weight(1f)
                                 .height(48.dp),
                             shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00875A))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Text("View Map")
                         }
@@ -248,7 +248,7 @@ private fun IssueDetailHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7FBF8))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(start = 18.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -258,35 +258,35 @@ private fun IssueDetailHeader(
                 Text(
                     text = "Issue Details",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF00875A),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFE8F5E9)
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ThumbUp, contentDescription = null, modifier = Modifier.size(10.dp), tint = Color(0xFF00875A))
+                        Icon(Icons.Default.ThumbUp, contentDescription = null, modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(voteCount.toString(), style = MaterialTheme.typography.labelSmall, color = Color(0xFF00875A), fontWeight = FontWeight.Bold)
+                        Text(voteCount.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
                     }
                 }
             }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                color = Color(0xFF17231D),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
         IconButton(onClick = onDismiss) {
-            Icon(Icons.Default.Close, contentDescription = "Close")
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -300,13 +300,13 @@ private fun IssueImages(imageUrls: List<String>) {
                     .fillMaxWidth()
                     .height(128.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFF1F4F2)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Image, contentDescription = null, tint = Color(0xFF9AA79F))
+                    Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("No images attached", color = Color(0xFF6E7C73), fontSize = 13.sp)
+                    Text("No images attached", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             }
         }
@@ -323,7 +323,7 @@ private fun IssueImages(imageUrls: List<String>) {
                     modifier = Modifier
                         .size(width = 188.dp, height = 136.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF1F4F2)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop
                 )
             }
@@ -341,8 +341,8 @@ private fun VoteSection(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = if (isVotedByMe) Color(0xFFE8F5E9) else Color(0xFFF8FBF9),
-        border = if (isVotedByMe) BorderStroke(1.dp, Color(0xFFC8E6C9)) else BorderStroke(1.dp, Color(0xFFE1EBE5))
+        color = if (isVotedByMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        border = if (isVotedByMe) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -354,14 +354,14 @@ private fun VoteSection(
             Icon(
                 imageVector = if (isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                 contentDescription = if (isVotedByMe) "Remove Upvote" else "Upvote",
-                tint = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF5D6B63),
+                tint = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (isVotedByMe) "You upvoted this" else "Upvote this issue",
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF17231D),
+                    color = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -371,14 +371,14 @@ private fun VoteSection(
                         else -> "$voteCount people upvoted this"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isVotedByMe) Color(0xFF00875A).copy(alpha = 0.8f) else Color(0xFF6E7C73)
+                    color = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = if (isVotedByMe) Color(0xFF00875A) else Color(0xFF5D6B63)
+                    color = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -396,21 +396,21 @@ private fun TimelineSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFF8FBF9),
-            border = BorderStroke(1.dp, Color(0xFFE1EBE5))
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color(0xFF00875A))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (timeline.isNullOrEmpty()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF9AA79F), modifier = Modifier.size(18.dp))
-                        Text("No timeline updates available", color = Color(0xFF6E7C73), fontSize = 13.sp)
+                        Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        Text("No timeline updates available", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
                 } else {
                     Column {
@@ -443,7 +443,7 @@ private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF00875A),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp)
             )
             if (!isLast) {
@@ -451,7 +451,7 @@ private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
                     modifier = Modifier
                         .width(2.dp)
                         .height(48.dp)
-                        .background(Color(0xFFE1EBE5))
+                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
         }
@@ -465,20 +465,20 @@ private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
                 Text(
                     text = update.type.toDisplayLabel("Update"),
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFF17231D),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = formatDate(update.createdAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF6E7C73)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (!update.remarks.isNullOrBlank()) {
                 Text(
                     text = update.remarks,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF34423A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -500,18 +500,18 @@ private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
                     Text(
                         text = "Proof Submitted -",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF34423A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = Color(0xFF00875A)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "Click to view",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF00875A),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         textDecoration = TextDecoration.Underline
                     )
@@ -528,7 +528,7 @@ private fun TimelineItem(update: TimelineUpdateDto, isLast: Boolean) {
                 Text(
                     text = actorInfo,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF00875A),
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 4.dp),
                     fontWeight = FontWeight.Medium
                 )
@@ -547,8 +547,8 @@ private fun DetailSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFF8FBF9),
-            border = BorderStroke(1.dp, Color(0xFFE1EBE5))
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 content()
@@ -562,7 +562,7 @@ private fun SectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        color = Color(0xFF17231D),
+        color = MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Bold
     )
 }
@@ -641,14 +641,14 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFF6E7C73),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.widthIn(max = 112.dp)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF2D2D2D),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

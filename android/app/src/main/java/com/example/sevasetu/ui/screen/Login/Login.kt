@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
+import com.example.sevasetu.utils.ThemePreferenceManager
 import com.example.sevasetu.data.repository.AuthContainer
 import com.example.sevasetu.ui.common.AuthViewModel
 import com.example.sevasetu.ui.common.AuthViewModelFactory
@@ -62,6 +64,7 @@ class Login : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         if (authViewModel.restoreSession()) {
             startActivity(Intent(this, Dashboard::class.java))
             finish()
@@ -69,7 +72,8 @@ class Login : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 LoginScreen(
                     authViewModel = authViewModel,
                     onAuthSuccess = {
@@ -99,14 +103,14 @@ fun LoginScreen(
         }
     }
 
-    val primaryGreen = Color(0xFF006D44)
-    val bgGradientStart = Color(0xFFF2F9F6)
-    val bgGradientEnd = Color(0xFFFFFFFF)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val bgGradientStart = MaterialTheme.colorScheme.background
+    val bgGradientEnd = MaterialTheme.colorScheme.surface
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Box(
             modifier = Modifier

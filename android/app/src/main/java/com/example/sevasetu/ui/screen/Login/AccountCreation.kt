@@ -57,16 +57,19 @@ import com.example.sevasetu.Login
 import com.example.sevasetu.data.repository.AuthRepository
 import com.example.sevasetu.utils.JurisdictionConstants
 import com.example.sevasetu.utils.TokenManager
+import com.example.sevasetu.utils.ThemePreferenceManager
 
 class AccountCreation : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background
                 ) { innerPadding ->
                     AccountCreationScreen(
                         modifier = Modifier.padding(innerPadding),

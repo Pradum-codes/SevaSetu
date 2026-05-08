@@ -7,6 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import com.example.sevasetu.utils.TokenManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +61,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -94,7 +99,8 @@ import com.example.sevasetu.ui.screen.Alerts.AlertsScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.JurisdictionConstants
-import com.example.sevasetu.utils.TokenManager
+import com.example.sevasetu.utils.AppTheme
+import com.example.sevasetu.utils.ThemePreferenceManager
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -102,7 +108,8 @@ import java.util.TimeZone
 
 private enum class ProfileSheet {
     MY_ACTIVITY,
-    ACCOUNT_SETTINGS
+    ACCOUNT_SETTINGS,
+    THEME_SELECTOR
 }
 
 private val ProfileGreen = Color(0xFF00875A)
@@ -115,10 +122,18 @@ private const val PROFILE_IMAGE_BASE_URL = "https://sevasetu-zqa6.onrender.com/"
 class ProfileScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
-                ProfileScreenContent()
+            var themePreference by remember { mutableStateOf(themePreferenceManager.getTheme()) }
+            SevaSetuTheme(themePreference = themePreference) {
+                ProfileScreenContent(
+                    onThemeChange = { newTheme ->
+                        themePreferenceManager.setTheme(newTheme)
+                        themePreference = newTheme
+                    },
+                    currentTheme = themePreference
+                )
             }
         }
     }
@@ -126,14 +141,29 @@ class ProfileScreen : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreenContent() {
+fun ProfileScreenContent(
+    onThemeChange: (AppTheme) -> Unit,
+    currentTheme: AppTheme,
+    isPreview: Boolean = false
+) {
     val context = LocalContext.current
-    val viewModel: ProfileViewModel = viewModel(
-        factory = ProfileViewModelFactory(
-            repository = UserRepository(NetworkModule.provideUserApi(context)),
-            tokenManager = TokenManager(context)
+    val viewModel: ProfileViewModel = if (isPreview) {
+        // Provide a mock or empty ViewModel if possible, or just handle nullability in UI
+        // For simplicity, we'll keep the real one but wrap it
+        viewModel(
+            factory = ProfileViewModelFactory(
+                repository = UserRepository(NetworkModule.provideUserApi(context)),
+                tokenManager = TokenManager(context)
+            )
         )
-    )
+    } else {
+        viewModel(
+            factory = ProfileViewModelFactory(
+                repository = UserRepository(NetworkModule.provideUserApi(context)),
+                tokenManager = TokenManager(context)
+            )
+        )
+    }
     val uiState by viewModel.profileUiState.collectAsState()
     val accountState by viewModel.accountUiState.collectAsState()
     val activityState by viewModel.activityUiState.collectAsState()
@@ -158,7 +188,7 @@ fun ProfileScreenContent() {
                 title = {
                     Text(
                         text = "SevaSetu",
-                        color = ProfileGreen,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -174,7 +204,7 @@ fun ProfileScreenContent() {
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9))
+                                .background(androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             Icon(
                                 Icons.Default.Person,
@@ -182,16 +212,16 @@ fun ProfileScreenContent() {
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .size(24.dp),
-                                tint = ProfileGreen
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = false,
                     onClick = { context.startActivity(Intent(context, Dashboard::class.java)) },
@@ -216,9 +246,9 @@ fun ProfileScreenContent() {
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ProfileGreen,
-                        selectedTextColor = ProfileGreen,
-                        indicatorColor = Color(0xFFE8F5E9)
+                        selectedIconColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        selectedTextColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        indicatorColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
                     )
                 )
             }
@@ -228,7 +258,7 @@ fun ProfileScreenContent() {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF2F5F3))
+                .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -237,22 +267,22 @@ fun ProfileScreenContent() {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
                     shadowElevation = 16.dp,
-                    border = BorderStroke(1.dp, ProfileBorder)
+                    border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ProfileGreenSoft)
+                                .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(start = 18.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(40.dp),
-                                color = Color(0xFFE7F5EA),
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.size(96.dp)
                             ) {
                                 val profileImageUrl = uiState.profileImageUrl.normalizeProfileImageUrl()
@@ -283,24 +313,24 @@ fun ProfileScreenContent() {
                                     Text(
                                         text = "Profile Details",
                                         style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-                                        color = ProfileGreen,
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFE8F5E9)) {
+                                    Surface(shape = RoundedCornerShape(8.dp), color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer) {
                                         Text(
                                             text = "VERIFIED MEMBER",
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = ProfileGreen
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                     }
                                 }
                                 Text(
                                     text = uiState.userName,
                                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                                    color = ProfileText,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -308,7 +338,7 @@ fun ProfileScreenContent() {
                                 Text(
                                     text = uiState.locationText,
                                     style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                                    color = ProfileMuted,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -320,9 +350,9 @@ fun ProfileScreenContent() {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(16.dp),
                                             strokeWidth = 2.dp,
-                                            color = ProfileGreen
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                                         )
-                                        Text("Loading profile...", color = ProfileMuted, fontSize = 12.sp)
+                                        Text("Loading profile...", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                     }
                                 }
                                 if (!uiState.errorMessage.isNullOrBlank()) {
@@ -352,8 +382,8 @@ fun ProfileScreenContent() {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                color = ProfileGreenSoft,
-                                border = BorderStroke(1.dp, ProfileBorder)
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(14.dp),
@@ -363,13 +393,13 @@ fun ProfileScreenContent() {
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        ProfileInfoBadge("Profile synced", ProfileGreenSoft, ProfileGreen)
-                                        ProfileInfoBadge("Ready for updates", Color.White, ProfileMuted, border = ProfileBorder)
+                                        ProfileInfoBadge("Profile synced", androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant, androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                                        ProfileInfoBadge("Ready for updates", androidx.compose.material3.MaterialTheme.colorScheme.surface, androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, border = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                                     }
                                     Text(
                                         text = "Your profile and account settings are pulled from the server and shown.",
                                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                        color = ProfileMuted
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -380,8 +410,8 @@ fun ProfileScreenContent() {
                                     .fillMaxWidth()
                                     .height(50.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color(0xFFFFEBEE)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F))
+                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error)
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -397,7 +427,7 @@ fun ProfileScreenContent() {
                     text = "PREFERENCES",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Gray,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -405,10 +435,10 @@ fun ProfileScreenContent() {
             item {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth(),
                     shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, ProfileBorder)
+                    border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         PreferenceItem(
@@ -420,7 +450,7 @@ fun ProfileScreenContent() {
                                 viewModel.loadActivity()
                             }
                         )
-                        HorizontalDivider(color = ProfileBorder)
+                        HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                         PreferenceItem(
                             icon = Icons.Default.Settings,
                             label = "Account Settings",
@@ -430,12 +460,19 @@ fun ProfileScreenContent() {
                                 viewModel.loadAccountSettings()
                             }
                         )
-                        HorizontalDivider(color = ProfileBorder)
+                        HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                         PreferenceItem(icon = Icons.Default.Language, label = "Language", extraText = "English")
-                        HorizontalDivider(color = ProfileBorder)
+                        HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                         PreferenceItem(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "Help & Support")
-                        HorizontalDivider(color = ProfileBorder)
-                        PreferenceItem(icon = Icons.Default.DarkMode, label = "Dark Mode", isSwitch = true)
+                        HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
+                        PreferenceItem(
+                            icon = Icons.Default.DarkMode,
+                            label = "App Theme",
+                            extraText = currentTheme.name.lowercase().replaceFirstChar { it.uppercase() },
+                            onClick = {
+                                activeSheet = ProfileSheet.THEME_SELECTOR
+                            }
+                        )
                     }
                 }
             }
@@ -444,7 +481,7 @@ fun ProfileScreenContent() {
                 Text(
                     text = "VERSION ${readAppVersionName()}",
                     fontSize = 10.sp,
-                    color = Color.LightGray,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -465,7 +502,7 @@ fun ProfileScreenContent() {
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .fillMaxHeight(0.88f),
-                color = Color.White,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(24.dp),
                 shadowElevation = 16.dp
             ) {
@@ -485,8 +522,56 @@ fun ProfileScreenContent() {
                             onProfileImageUrlChanged = viewModel::onProfileImageUrlChanged,
                             onSave = viewModel::saveAccountSettings
                         )
+                        ProfileSheet.THEME_SELECTOR -> ThemeSelectorSheetContent(
+                            currentTheme = currentTheme,
+                            onThemeSelected = {
+                                onThemeChange(it)
+                                activeSheet = null
+                            }
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeSelectorSheetContent(
+    currentTheme: AppTheme,
+    onThemeSelected: (AppTheme) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Select Theme",
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold
+        )
+        
+        AppTheme.entries.forEach { theme ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onThemeSelected(theme) }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                RadioButton(
+                    selected = currentTheme == theme,
+                    onClick = { onThemeSelected(theme) }
+                )
+                Text(
+                    text = theme.name.lowercase().replaceFirstChar { it.uppercase() },
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
@@ -498,36 +583,38 @@ fun PreferenceItem(
     label: String,
     extraText: String? = null,
     isSwitch: Boolean = false,
+    checked: Boolean = false,
+    onCheckedChange: ((Boolean) -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
-    var checked by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .padding(vertical = 10.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             modifier = Modifier.size(40.dp),
             shape = CircleShape,
-            color = ProfileGreenSoft,
-            border = BorderStroke(1.dp, ProfileBorder)
+            color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.padding(10.dp),
-                tint = ProfileGreen
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = ProfileText)
+            Text(text = label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
             if (extraText != null) {
                 Text(
                     text = extraText,
                     fontSize = 12.sp,
-                    color = ProfileMuted,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -536,23 +623,21 @@ fun PreferenceItem(
         if (isSwitch) {
             Switch(
                 checked = checked,
-                onCheckedChange = { checked = it },
+                onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = ProfileGreen,
+                    checkedTrackColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                     uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color.LightGray
+                    uncheckedTrackColor = androidx.compose.material3.MaterialTheme.colorScheme.outline
                 )
             )
         } else {
-            IconButton(onClick = { onClick?.invoke() }) {
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = Color.LightGray,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -560,7 +645,29 @@ fun PreferenceItem(
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    SevaSetuTheme { ProfileScreenContent() }
+    SevaSetuTheme(themePreference = AppTheme.LIGHT) {
+        Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
+             // In preview, we just show the structure without real ViewModel if it fails
+             // But let's try to just render the Theme first
+             Column {
+                 Text("SevaSetu Light Mode", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                 Button(onClick = {}) { Text("Button") }
+             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProfileScreenDarkPreview() {
+    SevaSetuTheme(themePreference = AppTheme.DARK) {
+        Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
+             Column {
+                 Text("SevaSetu Dark Mode", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                 Button(onClick = {}) { Text("Button") }
+             }
+        }
+    }
 }
 
 @Composable
@@ -581,19 +688,19 @@ private fun MyActivitySheetContent(activityState: MyActivityUiState) {
             Text(
                 text = "My Activity",
                 style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                color = ProfileText,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = { /* Dismiss is handled by parent Dialog */ }) {
-                Icon(Icons.Default.Info, contentDescription = "Close", tint = Color.LightGray)
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = ProfileGreenSoft,
-            border = BorderStroke(1.dp, ProfileBorder)
+            color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
         ) {
             Column(
                 modifier = Modifier.padding(14.dp),
@@ -608,14 +715,14 @@ private fun MyActivitySheetContent(activityState: MyActivityUiState) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = ProfileGreen
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                             )
-                            Text("Loading activity...", color = ProfileMuted)
+                            Text("Loading activity...", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
                     !activityState.errorMessage.isNullOrBlank() -> {
-                        Text(activityState.errorMessage, color = Color(0xFFB3261E))
+                        Text(activityState.errorMessage, color = androidx.compose.material3.MaterialTheme.colorScheme.error)
                     }
 
                     activityState.events.isEmpty() -> {
@@ -623,8 +730,8 @@ private fun MyActivitySheetContent(activityState: MyActivityUiState) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = ProfileMuted, modifier = Modifier.size(18.dp))
-                            Text("No activity found.", color = ProfileMuted)
+                            Icon(Icons.Default.Info, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                            Text("No activity found.", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
@@ -679,18 +786,18 @@ private fun AccountSettingsSheetContent(
             Text(
                 text = "Account Settings",
                 style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                color = ProfileText,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = { /* Dismiss is handled by parent Dialog */ }) {
-                Icon(Icons.Default.Info, contentDescription = "Close", tint = Color.LightGray)
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         if (state.isLoading) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = ProfileGreen)
-                Text("Loading account details...", color = ProfileMuted)
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                Text("Loading account details...", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -726,7 +833,7 @@ private fun AccountSettingsSheetContent(
                         label = { Text("District") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = districtMenuExpanded) },
                         modifier = Modifier
-                            .menuAnchor()
+//                            .menuAnchor()
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -817,12 +924,12 @@ private fun AccountSettingsSheetContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFFEBEE),
-                border = BorderStroke(1.dp, Color(0xFFFFCDD2))
+                color = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
+                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
             ) {
                 Text(
                     state.errorMessage,
-                    color = Color(0xFFB3261E),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(12.dp),
                     fontSize = 13.sp
                 )
@@ -833,12 +940,12 @@ private fun AccountSettingsSheetContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFE8F5E9),
-                border = BorderStroke(1.dp, ProfileBorder)
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             ) {
                 Text(
                     state.saveMessage,
-                    color = ProfileGreen,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
@@ -865,7 +972,7 @@ private fun ProfileSectionTitle(title: String) {
     Text(
         text = title,
         style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-        color = ProfileText,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Bold
     )
 }
@@ -877,8 +984,8 @@ private fun ProfileSectionCard(title: String, content: @Composable () -> Unit) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = ProfileGreenSoft,
-            border = BorderStroke(1.dp, ProfileBorder)
+            color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
         ) {
             Box(modifier = Modifier.padding(14.dp)) {
                 content()
@@ -897,14 +1004,14 @@ private fun ProfileInfoRow(label: String, value: String) {
         Text(
             text = label,
             style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-            color = ProfileMuted,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(104.dp)
         )
         Text(
             text = value,
             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            color = ProfileText,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -946,13 +1053,13 @@ private fun ProfileTimelineItem(event: UserActivityEventDto, isLast: Boolean) {
                 "RESOLVED", "CLOSED", "APPROVED" -> Icons.Default.CheckCircle
                 else -> Icons.Default.Info
             }
-            Icon(imageVector = icon, contentDescription = null, tint = ProfileGreen, modifier = Modifier.size(16.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             if (!isLast) {
                 Box(
                     modifier = Modifier
                         .width(2.dp)
                         .height(56.dp)
-                        .background(ProfileBorder)
+                        .background(androidx.compose.material3.MaterialTheme.colorScheme.outline)
                 )
             }
         }
@@ -968,7 +1075,7 @@ private fun ProfileTimelineItem(event: UserActivityEventDto, isLast: Boolean) {
                         ?: event.eventType?.toDisplayLabel("Activity")
                         ?: "Activity",
                     style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                    color = ProfileText,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
@@ -977,22 +1084,22 @@ private fun ProfileTimelineItem(event: UserActivityEventDto, isLast: Boolean) {
                 Text(
                     text = formatProfileDate(event.createdAt),
                     style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                    color = ProfileMuted
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (!event.eventType.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 ProfileInfoBadge(
                     text = event.eventType.toDisplayLabel("Activity"),
-                    backgroundColor = Color(0xFFE8F5E9),
-                    textColor = ProfileGreen
+                    backgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                    textColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             if (!event.message.isNullOrBlank()) {
                 Text(
                     text = event.message,
                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = ProfileText,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
@@ -1001,14 +1108,14 @@ private fun ProfileTimelineItem(event: UserActivityEventDto, isLast: Boolean) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, ProfileBorder)
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
                 ) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = issue.title ?: "Related issue",
                             style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-                            color = ProfileText,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis

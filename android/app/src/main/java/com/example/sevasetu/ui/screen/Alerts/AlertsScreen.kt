@@ -29,14 +29,18 @@ import androidx.compose.ui.unit.sp
 import com.example.sevasetu.Dashboard
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
+import androidx.compose.runtime.remember
 import com.example.sevasetu.ui.theme.SevaSetuTheme
+import com.example.sevasetu.utils.ThemePreferenceManager
 
 class AlertsScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 AlertsScreenContent()
             }
         }
@@ -53,7 +57,7 @@ fun AlertsScreenContent() {
                 title = {
                     Text(
                         "SevaSetu",
-                        color = Color(0xFF00875A),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -71,30 +75,30 @@ fun AlertsScreenContent() {
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8F5E9))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                                 .padding(1.dp)
                         ) {
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
                                 shape = CircleShape,
-                                color = Color(0xFFE8F5E9),
-                                border = BorderStroke(1.dp, Color(0xFFD1D5D3))
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                             ) {
                                 Icon(
                                     Icons.Default.Person,
                                     contentDescription = "Profile",
                                     modifier = Modifier.padding(6.dp),
-                                    tint = Color(0xFF00875A)
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = false,
                     onClick = {
@@ -117,9 +121,9 @@ fun AlertsScreenContent() {
                     icon = { Icon(Icons.Default.Notifications, contentDescription = "Alerts") },
                     label = { Text("ALERTS") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF00875A),
-                        selectedTextColor = Color(0xFF00875A),
-                        indicatorColor = Color(0xFFE8F5E9)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 )
                 NavigationBarItem(
@@ -137,7 +141,7 @@ fun AlertsScreenContent() {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF2F5F3)) // Darker background for visibility
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -148,7 +152,7 @@ fun AlertsScreenContent() {
                     text = "Notifications",
                     fontSize = 38.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -157,7 +161,7 @@ fun AlertsScreenContent() {
                 Text(
                     text = "Track the pulse of your civic contributions.",
                     fontSize = 15.sp,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -170,8 +174,8 @@ fun AlertsScreenContent() {
                     time = "2h ago",
                     description = "Your report on 'Pothole at Sector 4' has been successfully resolved. Thank you for your contribution!",
                     icon = Icons.Default.CheckCircle,
-                    iconBgColor = Color(0xFFE8F5E9),
-                    iconColor = Color(0xFF006D47),
+                    iconBgColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.primary,
                     hasButton = true,
                     buttonText = "View Results"
                 )
@@ -181,8 +185,8 @@ fun AlertsScreenContent() {
                     time = "5h ago",
                     description = "The status of 'Street Light Repair' has changed to In Progress. A technician has been assigned.",
                     icon = Icons.AutoMirrored.Filled.Assignment,
-                    iconBgColor = Color(0xFFFFF1F1),
-                    iconColor = Color(0xFFD32F2F)
+                    iconBgColor = MaterialTheme.colorScheme.errorContainer,
+                    iconColor = MaterialTheme.colorScheme.error
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -194,17 +198,17 @@ fun AlertsScreenContent() {
                     time = "1d ago",
                     description = "Scheduled maintenance for water pipelines in Vasant Kunj will occur tomorrow from 10 AM to 4 PM.",
                     icon = Icons.Default.Campaign,
-                    iconBgColor = Color(0xFFF1F4F2),
-                    iconColor = Color(0xFF006D47)
+                    iconBgColor = MaterialTheme.colorScheme.surfaceVariant,
+                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
-                // Civic Hero Badge Card (Green)
+                // Civic Hero Badge Card (Primary)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     shape = RoundedCornerShape(32.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF00875A)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
@@ -214,13 +218,13 @@ fun AlertsScreenContent() {
                         Surface(
                             modifier = Modifier.size(56.dp),
                             shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.2f)
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
                         ) {
                             Icon(
                                 Icons.Default.WorkspacePremium,
                                 contentDescription = null,
                                 modifier = Modifier.padding(14.dp),
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                         
@@ -236,19 +240,19 @@ fun AlertsScreenContent() {
                                     text = "Civic Hero Badge!",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onPrimary
                                 )
                                 Text(
                                     text = "1d ago",
                                     fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.8f)
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Congratulations! You've reached the Silver Tier for active reporting this month.",
                                 fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.9f),
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                                 lineHeight = 20.sp
                             )
                         }
@@ -264,21 +268,21 @@ fun AlertsScreenContent() {
                         .height(180.dp)
                         .padding(vertical = 8.dp),
                     shape = RoundedCornerShape(32.dp),
-                    color = Color(0xFFDDE2DF),
-                    border = BorderStroke(1.dp, Color(0xFFD1D5D3))
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         // Placeholder for Map Background
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Gray.copy(alpha = 0.1f))
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                         )
                         
                         Surface(
                             shape = RoundedCornerShape(24.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFFD1D5D3)),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             shadowElevation = 4.dp
                         ) {
                             Text(
@@ -286,7 +290,7 @@ fun AlertsScreenContent() {
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF006D47)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -310,10 +314,10 @@ fun SectionHeader(title: String) {
             text = title,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.width(16.dp))
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
+        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
     }
 }
 
@@ -333,9 +337,9 @@ fun NotificationItem(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, Color(0xFFD1D5D3)) // Visible border
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
     ) {
         Row(
             modifier = Modifier.padding(24.dp),
@@ -367,12 +371,12 @@ fun NotificationItem(
                         text = title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = time,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 
@@ -381,7 +385,7 @@ fun NotificationItem(
                 Text(
                     text = description,
                     fontSize = 14.sp,
-                    color = Color.DarkGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp
                 )
                 
@@ -389,11 +393,10 @@ fun NotificationItem(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006D47)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                        modifier = Modifier.height(40.dp),
-                        border = BorderStroke(1.dp, Color(0xFF004D32)) // Border for button visibility
+                        modifier = Modifier.height(40.dp)
                     ) {
                         Text(text = buttonText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }

@@ -79,14 +79,17 @@ import androidx.core.graphics.toColorInt
 import androidx.core.graphics.createBitmap
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import com.example.sevasetu.ui.screen.Reports.IssueReport
+import com.example.sevasetu.utils.ThemePreferenceManager
 
 class Dashboard : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val themePreferenceManager = ThemePreferenceManager(this)
         enableEdgeToEdge()
         setContent {
-            SevaSetuTheme {
+            val themePreference = remember { themePreferenceManager.getTheme() }
+            SevaSetuTheme(themePreference = themePreference) {
                 DashboardScreen()
             }
         }
@@ -324,7 +327,7 @@ fun DashboardScreen() {
                 title = {
                     Text(
                         "SevaSetu",
-                        color = Color(0xFF00875A),
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -342,32 +345,32 @@ fun DashboardScreen() {
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Color.Gray)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                         ) {
                             // Placeholder for profile image
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = "Profile",
                                 modifier = Modifier.fillMaxSize(),
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = true,
                     onClick = { },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF00875A),
-                        selectedTextColor = Color(0xFF00875A),
-                        indicatorColor = Color(0xFFE8F5E9)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 )
                 NavigationBarItem(
@@ -401,8 +404,8 @@ fun DashboardScreen() {
                 onClick = {
                     context.startActivity(Intent(context, IssueReport::class.java))
                 },
-                containerColor = Color(0xFF00875A),
-                contentColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
@@ -416,28 +419,29 @@ fun DashboardScreen() {
                 .padding(innerPadding)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .background(Color(0xFFF8F9FA))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp)
         ) {
             // Search Bar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(28.dp),
-                color = Color.White,
-                shadowElevation = 2.dp
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 2.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray)
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Search for locations or report...",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1.0f)
                     )
-                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = Color(0xFF00875A))
+                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -462,7 +466,12 @@ fun DashboardScreen() {
             Spacer(Modifier.height(16.dp))
 
             // Nearby Insights
-            Text("Nearby Insights", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(
+                "Nearby Insights",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.height(8.dp))
             val currentDashboardState = dashboardUiState
             when (currentDashboardState) {
@@ -471,31 +480,31 @@ fun DashboardScreen() {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF1F8E9)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("OPEN", color = Color.Gray, fontSize = 14.sp)
-                                Text(insights.open.toString(), color = Color(0xFFEF6C00), fontWeight = FontWeight.Bold)
+                                Text("OPEN", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                                Text(insights.open.toString(), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                             }
                             Spacer(Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("IN_PROGRESS", color = Color.Gray, fontSize = 14.sp)
-                                Text(insights.inProgress.toString(), color = Color(0xFF1565C0), fontWeight = FontWeight.Bold)
+                                Text("IN_PROGRESS", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                                Text(insights.inProgress.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                             Spacer(Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("CLOSED", color = Color.Gray, fontSize = 14.sp)
-                                Text(insights.closed.toString(), color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                                Text("CLOSED", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                                Text(insights.closed.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -504,7 +513,7 @@ fun DashboardScreen() {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF1F8E9)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(
                             modifier = Modifier
@@ -512,7 +521,7 @@ fun DashboardScreen() {
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = Color(0xFF00875A), modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -521,7 +530,12 @@ fun DashboardScreen() {
             Spacer(Modifier.height(24.dp))
 
             // Quick Categories
-            Text("Quick Categories", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(
+                "Quick Categories",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.height(12.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { CategoryChip("Garbage", Icons.Default.Delete) }
@@ -537,10 +551,15 @@ fun DashboardScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Nearby Issues", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(
+                    "Nearby Issues",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 TextButton(onClick = { }) {
-                    Text("View All", color = Color.Gray)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, size = 16.sp, tint = Color.Gray)
+                    Text("View All", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, size = 16.sp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -578,7 +597,7 @@ private fun DashboardSnapshotSection(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
                 Box(
@@ -587,7 +606,7 @@ private fun DashboardSnapshotSection(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF00875A))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -596,14 +615,14 @@ private fun DashboardSnapshotSection(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = dashboardUiState.message,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFD32F2F)
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -618,14 +637,15 @@ private fun DashboardSnapshotSection(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "My Reports Snapshot",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(12.dp))
 
@@ -636,15 +656,15 @@ private fun DashboardSnapshotSection(
                         SnapshotStatChip(
                             label = "OPEN",
                             count = snapshot.open,
-                            background = Color(0xFFFFF3E0),
-                            textColor = Color(0xFFEF6C00),
+                            background = MaterialTheme.colorScheme.errorContainer,
+                            textColor = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                         SnapshotStatChip(
                             label = "IN_PROGRESS",
                             count = snapshot.inProgress,
-                            background = Color(0xFFE3F2FD),
-                            textColor = Color(0xFF1565C0),
+                            background = MaterialTheme.colorScheme.secondaryContainer,
+                            textColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -658,15 +678,15 @@ private fun DashboardSnapshotSection(
                         SnapshotStatChip(
                             label = "RESOLVED",
                             count = snapshot.resolved,
-                            background = Color(0xFFE8F5E9),
-                            textColor = Color(0xFF2E7D32),
+                            background = MaterialTheme.colorScheme.primaryContainer,
+                            textColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.weight(1f)
                         )
                         SnapshotStatChip(
                             label = "REJECTED",
                             count = snapshot.rejected,
-                            background = Color(0xFFFFEBEE),
-                            textColor = Color(0xFFC62828),
+                            background = MaterialTheme.colorScheme.errorContainer,
+                            textColor = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -676,7 +696,7 @@ private fun DashboardSnapshotSection(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFF7FAF8)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             modifier = Modifier
@@ -689,13 +709,14 @@ private fun DashboardSnapshotSection(
                                 Text(
                                     text = "My Pending Action",
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = "You have ${pending.unresolved} unresolved reports",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             }
                             TextButton(onClick = onOpenReports) {
@@ -709,31 +730,32 @@ private fun DashboardSnapshotSection(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFFF1F8E9)
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = "Nearby Risk Summary",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = "${risk.highPriority} high-priority reports",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF2D2D2D)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
                                 text = "${risk.open} open reports in your area",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = "Coverage: ${risk.coverageText}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF00875A),
-                                fontWeight = FontWeight.SemiBold
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -794,7 +816,7 @@ private fun NearbyIssuesListSection(
                     .padding(vertical = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF00875A))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -802,13 +824,13 @@ private fun NearbyIssuesListSection(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = mapUiState.message,
-                        color = Color(0xFF2D2D2D),
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -879,8 +901,8 @@ private fun DashboardMapSection(
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF00875A).copy(alpha = 0.1f),
-            border = BorderStroke(1.dp, Color(0xFF00875A))
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
         ) {
             Row(
                 modifier = Modifier
@@ -892,7 +914,7 @@ private fun DashboardMapSection(
                 Icon(
                     Icons.Outlined.LocationOn,
                     contentDescription = null,
-                    tint = Color(0xFF00875A),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
@@ -902,7 +924,7 @@ private fun DashboardMapSection(
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF00875A),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                     maxLines = 1
                 )
             }
@@ -919,10 +941,10 @@ private fun DashboardMapSection(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFE8F5E9)),
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF00875A))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -930,14 +952,14 @@ private fun DashboardMapSection(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFE8F5E9))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = mapUiState.message,
-                            color = Color(0xFF2D2D2D),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -959,23 +981,24 @@ private fun DashboardMapSection(
                             .align(Alignment.BottomStart)
                             .padding(16.dp),
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White.copy(alpha = 0.92f)
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = "Community Pulse",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "${mapUiState.issues.size} nearby issues mapped",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = "Mode: ${mapUiState.searchMode.capitalized()}",
                                 fontSize = 9.sp,
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                             )
                         }
@@ -1123,9 +1146,9 @@ private fun markerColorForPriority(priority: String?): Int {
 
 private fun statusColorsForPriority(priority: String?): Pair<Color, Color> {
     return when (priority?.uppercase()) {
-        "HIGH" -> Color(0xFFFFEBEE) to Color(0xFFD32F2F)
-        "LOW" -> Color(0xFFE8F5E9) to Color(0xFF388E3C)
-        else -> Color(0xFFFFF8E1) to Color(0xFFEF6C00)
+        "HIGH" -> Color(0xFFD32F2F).copy(alpha = 0.1f) to Color(0xFFD32F2F)
+        "LOW" -> Color(0xFF2E7D32).copy(alpha = 0.1f) to Color(0xFF2E7D32)
+        else -> Color(0xFFF57C00).copy(alpha = 0.1f) to Color(0xFFF57C00)
     }
 }
 
@@ -1192,16 +1215,16 @@ private const val DEFAULT_NEARBY_DISTRICT_ID = "20000001-0000-0000-0000-00000000
 fun CategoryChip(label: String, icon: ImageVector) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFE8F5E9),
-        border = null
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = Color(0xFF00875A), modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text(label, color = Color(0xFF00875A), fontWeight = FontWeight.Medium)
+            Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -1225,7 +1248,7 @@ fun IssueCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -1233,7 +1256,7 @@ fun IssueCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
-                    .background(Color.LightGray)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (!imageUrl.isNullOrEmpty()) {
                     AsyncImage(
@@ -1248,7 +1271,7 @@ fun IssueCard(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No Image Available", color = Color.Gray)
+                        Text("No Image Available", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 
@@ -1271,7 +1294,7 @@ fun IssueCard(
                 Surface(
                     modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isVotedByMe) Color(0xFFE8F5E9) else Color.Black.copy(alpha = 0.6f)
+                    color = if (isVotedByMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1282,12 +1305,12 @@ fun IssueCard(
                             if (isVotedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = if (isVotedByMe) Color(0xFF00875A) else Color.White
+                            tint = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = voteCount.toString(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isVotedByMe) Color(0xFF00875A) else Color.White,
+                            color = if (isVotedByMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1299,11 +1322,22 @@ fun IssueCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    Text(time, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(desc, color = Color.Gray, fontSize = 12.sp, lineHeight = 16.sp)
+                Text(
+                    desc,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
                 Spacer(Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1311,11 +1345,11 @@ fun IssueCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.LocationOn, contentDescription = null, size = 14.sp, tint = Color.Gray)
+                        Icon(Icons.Outlined.LocationOn, contentDescription = null, size = 14.sp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(4.dp))
-                        Text(location, color = Color.Gray, fontSize = 12.sp)
+                        Text(location, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
-                    Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, tint = Color(0xFF00875A))
+                    Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
