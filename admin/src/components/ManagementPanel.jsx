@@ -109,6 +109,7 @@ export default function ManagementPanel({ adminRole, districts = [], departments
     }
   };
 
+
   if (!isState && !isDistrict) {
     return null;
   }
@@ -260,6 +261,7 @@ export default function ManagementPanel({ adminRole, districts = [], departments
           ))}
         </div>
       </section>
+
     </section>
   );
 }

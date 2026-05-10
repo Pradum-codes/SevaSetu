@@ -5,6 +5,7 @@ import IssueDetails from './components/IssueDetails';
 import IssueTimeline from './components/IssueTimeline';
 import ActionModal from './components/ActionModal';
 import ManagementPanel from './components/ManagementPanel';
+import StateReportPanel from './components/StateReportPanel';
 
 const statusLabels = {
   open: 'Open',
@@ -293,6 +294,14 @@ export default function Dashboard({ admin, onLogout }) {
               >
                 Manage
               </button>
+              {adminRole === 'STATE' && (
+                <button
+                  className={`nav-item ${activeView === 'reports' ? 'active' : ''}`}
+                  onClick={() => setActiveView('reports')}
+                >
+                  Reports
+                </button>
+              )}
             </>
           )}
         </nav>
@@ -314,7 +323,11 @@ export default function Dashboard({ admin, onLogout }) {
               {currentRole.scope} / {admin?.authorityProfile?.jurisdiction?.name || 'Administration'}
             </p>
             <h1>
-              {activeView === 'issues' ? currentRole.queue : currentRole.management}
+              {activeView === 'issues'
+                ? currentRole.queue
+                : activeView === 'reports'
+                  ? 'Reports'
+                  : currentRole.management}
             </h1>
           </div>
           {activeView === 'issues' && (
@@ -372,6 +385,8 @@ export default function Dashboard({ admin, onLogout }) {
             districts={adminRole === 'STATE' ? availableTargets : []}
             departments={adminRole === 'DISTRICT' ? availableTargets : []}
           />
+        ) : activeView === 'reports' && adminRole === 'STATE' ? (
+          <StateReportPanel />
         ) : (
           <>
             <div className="summary-row">

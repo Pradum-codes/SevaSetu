@@ -256,4 +256,16 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ proofImageUrl }),
     }),
+
+  stateAdminGenerateMonthlySummary: (month) =>
+    apiCall('/admin/state/reports/monthly-summary/generate', {
+      method: 'POST',
+      body: JSON.stringify(month ? { month } : {}),
+    }),
+
+  stateAdminSendMonthlySummary: (month) =>
+    apiCall('/admin/state/reports/monthly-summary/send', {
+      method: 'POST',
+      body: JSON.stringify(month ? { month } : {}),
+    }),
 };
