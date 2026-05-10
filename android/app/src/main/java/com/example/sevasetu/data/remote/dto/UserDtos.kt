@@ -81,3 +81,51 @@ data class UserActivityResponse(
     @SerializedName("limit") val limit: Int? = null,
     @SerializedName("events") val events: List<UserActivityEventDto> = emptyList()
 )
+
+data class NotificationIssueDto(
+    @SerializedName("id") val id: Int? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("status") val status: String? = null
+)
+
+data class NotificationActorDto(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("displayName") val displayName: String? = null
+)
+
+data class NotificationStatusChangeDto(
+    @SerializedName("oldStatus") val oldStatus: String? = null,
+    @SerializedName("newStatus") val newStatus: String? = null
+)
+
+data class NotificationDto(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("read") val read: Boolean = false,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("readAt") val readAt: String? = null,
+    @SerializedName("issue") val issue: NotificationIssueDto? = null,
+    @SerializedName("actor") val actor: NotificationActorDto? = null,
+    @SerializedName("statusChange") val statusChange: NotificationStatusChangeDto? = null,
+    @SerializedName("remarks") val remarks: String? = null,
+    @SerializedName("proofImageUrl") val proofImageUrl: String? = null,
+    @SerializedName("reportUrl") val reportUrl: String? = null
+)
+
+data class NotificationPaginationDto(
+    @SerializedName("page") val page: Int = 1,
+    @SerializedName("limit") val limit: Int = 20,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("totalPages") val totalPages: Int = 0
+)
+
+data class NotificationsResponse(
+    @SerializedName("notifications") val notifications: List<NotificationDto> = emptyList(),
+    @SerializedName("pagination") val pagination: NotificationPaginationDto? = null
+)
+
+data class UnreadCountResponse(
+    @SerializedName("unreadCount") val unreadCount: Int = 0
+)

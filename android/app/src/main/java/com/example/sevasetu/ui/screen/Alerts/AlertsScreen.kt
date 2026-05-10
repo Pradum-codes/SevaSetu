@@ -1,21 +1,63 @@
 package com.example.sevasetu.ui.screen.Alerts
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Update
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,15 +65,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sevasetu.Dashboard
+import com.example.sevasetu.data.remote.dto.NotificationDto
+import com.example.sevasetu.data.repository.UserRepository
+import com.example.sevasetu.network.NetworkModule
 import com.example.sevasetu.ui.screen.Profile.ProfileScreen
 import com.example.sevasetu.ui.screen.Reports.ReportScreen
-import androidx.compose.runtime.remember
 import com.example.sevasetu.ui.theme.SevaSetuTheme
 import com.example.sevasetu.utils.ThemePreferenceManager
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import androidx.core.net.toUri
 
 class AlertsScreen : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +91,11 @@ class AlertsScreen : ComponentActivity() {
         setContent {
             val themePreference = remember { themePreferenceManager.getTheme() }
             SevaSetuTheme(themePreference = themePreference) {
-                AlertsScreenContent()
+                AlertsScreenContent(
+                    openReportUrl = { url ->
+                        startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                    }
+                )
             }
         }
     }
@@ -49,14 +103,42 @@ class AlertsScreen : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlertsScreenContent() {
+fun AlertsScreenContent(
+    openReportUrl: (String) -> Unit
+) {
     val context = LocalContext.current
+    val viewModel: AlertsViewModel = viewModel(
+        factory = AlertsViewModelFactory(UserRepository(NetworkModule.provideUserApi(context)))
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadNotifications()
+    }
+
+    val unread = uiState.notifications.filter { !it.read }
+    val read = uiState.notifications.filter { it.read }
+    val handleOpen: (com.example.sevasetu.data.remote.dto.NotificationDto) -> Unit = { notification ->
+        // Mark read first
+        viewModel.markAsRead(notification.id)
+
+        // Open report/proof URL when present
+        notification.reportUrl?.takeIf { it.isNotBlank() }?.let { openReportUrl(it) }
+        notification.proofImageUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                context.startActivity(intent)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "SevaSetu",
+                        text = "SevaSetu",
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -68,29 +150,37 @@ fun AlertsScreenContent() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
-                    }) {
+                    if (uiState.unreadCount > 0) {
+//                        Text(
+//                            "${uiState.unreadCount} unread",
+//                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                            modifier = Modifier.padding(end = 8.dp)
+//                        )
+                        Text(
+                            "Read All",
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .clickable { viewModel.markAllAsRead() }
+                        )
+                    }
+                    IconButton(onClick = { viewModel.loadNotifications(isRefresh = true) }) {
+                        Icon(Icons.Default.Update, contentDescription = "Refresh")
+                    }
+
+                    IconButton(onClick = { context.startActivity(Intent(context, ProfileScreen::class.java)) }) {
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(1.dp)
                         ) {
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Profile",
-                                    modifier = Modifier.padding(6.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Profile",
+                                modifier = Modifier.align(Alignment.Center).size(24.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
                     }
                 },
@@ -101,17 +191,13 @@ fun AlertsScreenContent() {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 NavigationBarItem(
                     selected = false,
-                    onClick = {
-                        context.startActivity(Intent(context, Dashboard::class.java))
-                    },
+                    onClick = { context.startActivity(Intent(context, Dashboard::class.java)) },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     label = { Text("HOME") }
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = {
-                        context.startActivity(Intent(context, ReportScreen::class.java))
-                    },
+                    onClick = { context.startActivity(Intent(context, ReportScreen::class.java)) },
                     icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Reports") },
                     label = { Text("REPORTS") }
                 )
@@ -128,277 +214,195 @@ fun AlertsScreenContent() {
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = {
-                        context.startActivity(Intent(context, ProfileScreen::class.java))
-                    },
+                    onClick = { context.startActivity(Intent(context, ProfileScreen::class.java)) },
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("PROFILE") }
                 )
             }
         }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "Notifications",
-                    fontSize = 38.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Track the pulse of your civic contributions.",
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                SectionHeader("TODAY")
-                
-                NotificationItem(
-                    title = "Issue Resolved",
-                    time = "2h ago",
-                    description = "Your report on 'Pothole at Sector 4' has been successfully resolved. Thank you for your contribution!",
-                    icon = Icons.Default.CheckCircle,
-                    iconBgColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconColor = MaterialTheme.colorScheme.primary,
-                    hasButton = true,
-                    buttonText = "View Results"
-                )
-                
-                NotificationItem(
-                    title = "Update on Report",
-                    time = "5h ago",
-                    description = "The status of 'Street Light Repair' has changed to In Progress. A technician has been assigned.",
-                    icon = Icons.AutoMirrored.Filled.Assignment,
-                    iconBgColor = MaterialTheme.colorScheme.errorContainer,
-                    iconColor = MaterialTheme.colorScheme.error
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                SectionHeader("YESTERDAY")
-                
-                NotificationItem(
-                    title = "Area Alert",
-                    time = "1d ago",
-                    description = "Scheduled maintenance for water pipelines in Vasant Kunj will occur tomorrow from 10 AM to 4 PM.",
-                    icon = Icons.Default.Campaign,
-                    iconBgColor = MaterialTheme.colorScheme.surfaceVariant,
-                    iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                // Civic Hero Badge Card (Primary)
-                Card(
+        when {
+            uiState.isLoading -> {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(56.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
-                        ) {
-                            Icon(
-                                Icons.Default.WorkspacePremium,
-                                contentDescription = null,
-                                modifier = Modifier.padding(14.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
+                    CircularProgressIndicator()
+                }
+            }
+
+            uiState.errorMessage != null -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(uiState.errorMessage ?: "Failed to load")
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { viewModel.loadNotifications() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+
+            uiState.notifications.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No notifications yet")
+                }
+            }
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (unread.isNotEmpty()) {
+                        item { SectionTitle("UNREAD") }
+                        items(unread, key = { it.id ?: it.hashCode() }) { notification ->
+                            NotificationCard(
+                                notification = notification,
+                                onOpen = { handleOpen(notification) },
+                                onMarkRead = { viewModel.markAsRead(notification.id) }
                             )
                         }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Civic Hero Badge!",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Text(
-                                    text = "1d ago",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Congratulations! You've reached the Silver Tier for active reporting this month.",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
-                                lineHeight = 20.sp
+                    }
+
+                    if (read.isNotEmpty()) {
+                        item { SectionTitle("READ") }
+                        items(read, key = { it.id ?: it.hashCode() }) { notification ->
+                            NotificationCard(
+                                notification = notification,
+                                onOpen = { handleOpen(notification) },
+                                onMarkRead = { }
                             )
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Map Section
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        // Placeholder for Map Background
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
-                        )
-                        
-                        Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                            shadowElevation = 4.dp
-                        ) {
-                            Text(
-                                text = "Active Impact Map",
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
+
+    // Issue detail modal removed — notifications no longer open issue details
 }
 
 @Composable
-fun SectionHeader(title: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-    }
+private fun SectionTitle(label: String) {
+    Text(
+        text = label,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 12.sp
+    )
 }
 
 @Composable
-fun NotificationItem(
-    title: String,
-    time: String,
-    description: String,
-    icon: ImageVector,
-    iconBgColor: Color,
-    iconColor: Color,
-    hasButton: Boolean = false,
-    buttonText: String = ""
+private fun NotificationCard(
+    notification: NotificationDto,
+    onOpen: () -> Unit,
+    onMarkRead: () -> Unit
 ) {
+    val iconData = notificationIcon(notification.type)
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
-    ) {
-        Row(
-            modifier = Modifier.padding(24.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = CircleShape,
-                color = iconBgColor,
-                border = BorderStroke(1.dp, iconColor.copy(alpha = 0.1f))
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.padding(16.dp),
-                    tint = iconColor
-                )
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.read) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        ),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(38.dp),
+                    shape = CircleShape,
+                    color = iconData.background
                 ) {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                    Icon(
+                        imageVector = iconData.icon,
+                        contentDescription = null,
+                        tint = iconData.tint,
+                        modifier = Modifier.padding(9.dp)
                     )
+                }
+                Spacer(Modifier.size(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(notification.title ?: "Notification", fontWeight = FontWeight.Bold)
                     Text(
-                        text = time,
-                        fontSize = 12.sp,
+                        relativeTime(notification.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+            }
+
+            Spacer(Modifier.height(10.dp))
+            // If the backend appends remarks to the message string, remove that suffix
+            val rawMessage = notification.message ?: ""
+            val remarksText = notification.remarks?.takeIf { it.isNotBlank() }
+            val displayMessage = if (remarksText != null && rawMessage.endsWith(remarksText)) {
+                rawMessage.removeSuffix(remarksText).trim()
+            } else rawMessage
+
+            Text(
+                text = displayMessage,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // Show remarks (if provided) in regular size but italic
+            remarksText?.let {
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = description,
-                    fontSize = 14.sp,
+                    text = it,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
+                    fontStyle = FontStyle.Italic,
                 )
-                
-                if (hasButton) {
-                    Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            notification.actor?.displayName?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "By $it",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
+                // Show Open button only when there's a report or proof URL
+                if (!notification.reportUrl.isNullOrBlank()) {
+                    OutlinedButton(onClick = onOpen) {
+                        Text("Open report")
+                    }
+                } else if (!notification.proofImageUrl.isNullOrBlank()) {
+                    OutlinedButton(onClick = onOpen) {
+                        Text("View proof")
+                    }
+                }
+
+                if (!notification.read) {
                     Button(
-                        onClick = { },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                        modifier = Modifier.height(40.dp)
+                        onClick = onMarkRead,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text(text = buttonText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Mark read")
                     }
                 }
             }
@@ -406,10 +410,48 @@ fun NotificationItem(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+private data class NotificationIconData(
+    val icon: ImageVector,
+    val tint: Color,
+    val background: Color
+)
+
 @Composable
-fun AlertsScreenPreview() {
-    SevaSetuTheme {
-        AlertsScreenContent()
+private fun notificationIcon(type: String?): NotificationIconData {
+    return when (type) {
+        "MONTHLY_REPORT" -> NotificationIconData(
+            icon = Icons.Default.PictureAsPdf,
+            tint = MaterialTheme.colorScheme.primary,
+            background = MaterialTheme.colorScheme.primaryContainer
+        )
+        "ISSUE_CLOSED", "ISSUE_RESOLVED" -> NotificationIconData(
+            icon = Icons.Default.CheckCircle,
+            tint = Color(0xFF146C43),
+            background = Color(0xFFE7F8EF)
+        )
+        else -> NotificationIconData(
+            icon = Icons.Default.TaskAlt,
+            tint = MaterialTheme.colorScheme.secondary,
+            background = MaterialTheme.colorScheme.secondaryContainer
+        )
+    }
+}
+
+private fun relativeTime(value: String?): String {
+    if (value.isNullOrBlank()) return "Just now"
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val createdAt = parser.parse(value)?.time ?: return value
+        val minutes = ((Date().time - createdAt) / 60000).coerceAtLeast(0)
+        when {
+            minutes < 1 -> "Just now"
+            minutes < 60 -> "${minutes}m ago"
+            minutes < 1440 -> "${minutes / 60}h ago"
+            else -> "${minutes / 1440}d ago"
+        }
+    } catch (_: Exception) {
+        value
     }
 }

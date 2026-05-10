@@ -3,6 +3,8 @@ package com.example.sevasetu.data.remote.api
 import com.example.sevasetu.data.remote.dto.UpdateProfileRequest
 import com.example.sevasetu.data.remote.dto.UserActivityResponse
 import com.example.sevasetu.data.remote.dto.UserMeResponse
+import com.example.sevasetu.data.remote.dto.NotificationsResponse
+import com.example.sevasetu.data.remote.dto.UnreadCountResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -39,4 +41,22 @@ interface UserApi {
     suspend fun deleteDeviceToken(
         @Path("token") token: String
     ): Response<Map<String, String>>
+
+    @GET("/users/me/notifications")
+    suspend fun getMyNotifications(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("status") status: String? = null
+    ): Response<NotificationsResponse>
+
+    @PATCH("/users/me/notifications/{id}/read")
+    suspend fun markNotificationRead(
+        @Path("id") notificationId: String
+    ): Response<Map<String, Any>>
+
+    @PATCH("/users/me/notifications/read-all")
+    suspend fun markAllNotificationsRead(): Response<Map<String, Any>>
+
+    @GET("/users/me/notifications/unread-count")
+    suspend fun getUnreadCount(): Response<UnreadCountResponse>
 }
