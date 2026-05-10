@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -109,7 +110,9 @@ import java.util.TimeZone
 private enum class ProfileSheet {
     MY_ACTIVITY,
     ACCOUNT_SETTINGS,
-    THEME_SELECTOR
+    THEME_SELECTOR,
+    LANGUAGE_SELECTOR,
+    HELP_SUPPORT
 }
 
 private val ProfileGreen = Color(0xFF00875A)
@@ -147,15 +150,8 @@ fun ProfileScreenContent(
     isPreview: Boolean = false
 ) {
     val context = LocalContext.current
-    val viewModel: ProfileViewModel = if (isPreview) {
-        // Provide a mock or empty ViewModel if possible, or just handle nullability in UI
-        // For simplicity, we'll keep the real one but wrap it
-        viewModel(
-            factory = ProfileViewModelFactory(
-                repository = UserRepository(NetworkModule.provideUserApi(context)),
-                tokenManager = TokenManager(context)
-            )
-        )
+    val viewModel: ProfileViewModel? = if (isPreview) {
+        null
     } else {
         viewModel(
             factory = ProfileViewModelFactory(
@@ -164,17 +160,26 @@ fun ProfileScreenContent(
             )
         )
     }
-    val uiState by viewModel.profileUiState.collectAsState()
-    val accountState by viewModel.accountUiState.collectAsState()
-    val activityState by viewModel.activityUiState.collectAsState()
+    
+    val uiState = viewModel?.profileUiState?.collectAsState()?.value ?: ProfileUiState(
+        userName = "Sahil Chaudhary",
+        locationText = "Jalandhar District",
+        profileImageUrl = null
+    )
+    val accountState = viewModel?.accountUiState?.collectAsState()?.value ?: AccountSettingsUiState(
+        name = "Sahil Chaudhary",
+        email = "sahil@example.com",
+        phone = "9876543210"
+    )
+    val activityState = viewModel?.activityUiState?.collectAsState()?.value ?: MyActivityUiState()
     var activeSheet by remember { mutableStateOf<ProfileSheet?>(null) }
 
     LaunchedEffect(Unit) {
-        viewModel.loadProfile()
+        viewModel?.loadProfile()
     }
 
     LaunchedEffect(uiState.sessionExpired) {
-        if (uiState.sessionExpired) {
+        if (uiState.sessionExpired && !isPreview) {
             val intent = Intent(context, Login::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
@@ -316,16 +321,6 @@ fun ProfileScreenContent(
                                         color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(shape = RoundedCornerShape(8.dp), color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer) {
-                                        Text(
-                                            text = "VERIFIED MEMBER",
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
                                 }
                                 Text(
                                     text = uiState.userName,
@@ -364,7 +359,7 @@ fun ProfileScreenContent(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     OutlinedButton(
-                                        onClick = viewModel::loadProfile,
+                                        onClick = { viewModel?.loadProfile() },
                                         modifier = Modifier.height(38.dp),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -373,58 +368,13 @@ fun ProfileScreenContent(
                                 }
                             }
                         }
-
-                        Column(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            ProfileSectionTitle("Quick Actions")
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline)
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        ProfileInfoBadge("Profile synced", androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant, androidx.compose.material3.MaterialTheme.colorScheme.primary)
-                                        ProfileInfoBadge("Ready for updates", androidx.compose.material3.MaterialTheme.colorScheme.surface, androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, border = androidx.compose.material3.MaterialTheme.colorScheme.outline)
-                                    }
-                                    Text(
-                                        text = "Your profile and account settings are pulled from the server and shown.",
-                                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.logout() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Logout", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
                 }
             }
 
             item {
                 Text(
-                    text = "PREFERENCES",
+                    text = "ACCOUNT SETTING",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
@@ -447,23 +397,32 @@ fun ProfileScreenContent(
                             extraText = "Timeline view",
                             onClick = {
                                 activeSheet = ProfileSheet.MY_ACTIVITY
-                                viewModel.loadActivity()
+                                viewModel?.loadActivity()
                             }
                         )
                         HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                         PreferenceItem(
                             icon = Icons.Default.Settings,
-                            label = "Account Settings",
+                            label = "Edit Profile",
                             extraText = "Manage contact details",
                             onClick = {
                                 activeSheet = ProfileSheet.ACCOUNT_SETTINGS
-                                viewModel.loadAccountSettings()
+                                viewModel?.loadAccountSettings()
                             }
                         )
                         HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
-                        PreferenceItem(icon = Icons.Default.Language, label = "Language", extraText = "English")
+                        PreferenceItem(
+                            icon = Icons.Default.Language,
+                            label = "Language",
+                            extraText = "English",
+                            onClick = { activeSheet = ProfileSheet.LANGUAGE_SELECTOR }
+                        )
                         HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
-                        PreferenceItem(icon = Icons.AutoMirrored.Filled.HelpOutline, label = "Help & Support")
+                        PreferenceItem(
+                            icon = Icons.AutoMirrored.Filled.HelpOutline,
+                            label = "Help & Support",
+                            onClick = { activeSheet = ProfileSheet.HELP_SUPPORT }
+                        )
                         HorizontalDivider(color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
                         PreferenceItem(
                             icon = Icons.Default.DarkMode,
@@ -477,6 +436,7 @@ fun ProfileScreenContent(
                 }
             }
 
+
             item {
                 Text(
                     text = "VERSION ${readAppVersionName()}",
@@ -484,6 +444,22 @@ fun ProfileScreenContent(
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     fontWeight = FontWeight.Medium
                 )
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = { viewModel?.logout() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Logout", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -500,28 +476,42 @@ fun ProfileScreenContent(
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth(0.94f)
-                    .fillMaxHeight(0.88f),
+                    .fillMaxWidth(if (sheet == ProfileSheet.THEME_SELECTOR) 0.85f else 0.94f)
+                    .then(
+                        if (sheet == ProfileSheet.THEME_SELECTOR) 
+                            Modifier.wrapContentHeight() 
+                        else 
+                            Modifier.fillMaxHeight(0.88f)
+                    ),
                 color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(24.dp),
                 shadowElevation = 16.dp
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = if (sheet == ProfileSheet.THEME_SELECTOR) 
+                        Modifier.padding(vertical = 8.dp) 
+                    else 
+                        Modifier.fillMaxSize()
+                ) {
                     when (sheet) {
                         ProfileSheet.MY_ACTIVITY -> MyActivitySheetContent(activityState = activityState)
-                        ProfileSheet.ACCOUNT_SETTINGS -> AccountSettingsSheetContent(
-                            state = accountState,
-                            onDistrictChanged = viewModel::onDistrictChanged,
-                            onPhoneChanged = viewModel::onPhoneChanged,
-                            onAddressTextChanged = viewModel::onAddressTextChanged,
-                            onPinCodeChanged = viewModel::onPinCodeChanged,
-                            onAddressLocalityChanged = viewModel::onAddressLocalityChanged,
-                            onAddressLandmarkChanged = viewModel::onAddressLandmarkChanged,
-                            onAddressLatChanged = viewModel::onAddressLatChanged,
-                            onAddressLngChanged = viewModel::onAddressLngChanged,
-                            onProfileImageUrlChanged = viewModel::onProfileImageUrlChanged,
-                            onSave = viewModel::saveAccountSettings
-                        )
+                        ProfileSheet.ACCOUNT_SETTINGS -> {
+                            if (viewModel != null) {
+                                AccountSettingsSheetContent(
+                                    state = accountState,
+                                    onDistrictChanged = viewModel::onDistrictChanged,
+                                    onPhoneChanged = viewModel::onPhoneChanged,
+                                    onAddressTextChanged = viewModel::onAddressTextChanged,
+                                    onPinCodeChanged = viewModel::onPinCodeChanged,
+                                    onAddressLocalityChanged = viewModel::onAddressLocalityChanged,
+                                    onAddressLandmarkChanged = viewModel::onAddressLandmarkChanged,
+                                    onAddressLatChanged = viewModel::onAddressLatChanged,
+                                    onAddressLngChanged = viewModel::onAddressLngChanged,
+                                    onProfileImageUrlChanged = viewModel::onProfileImageUrlChanged,
+                                    onSave = viewModel::saveAccountSettings
+                                )
+                            }
+                        }
                         ProfileSheet.THEME_SELECTOR -> ThemeSelectorSheetContent(
                             currentTheme = currentTheme,
                             onThemeSelected = {
@@ -529,9 +519,198 @@ fun ProfileScreenContent(
                                 activeSheet = null
                             }
                         )
+                        ProfileSheet.LANGUAGE_SELECTOR -> LanguageSelectorSheetContent(
+                            onLanguageSelected = { activeSheet = null }
+                        )
+                        ProfileSheet.HELP_SUPPORT -> HelpSupportSheetContent(
+                            onDismiss = { activeSheet = null }
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LanguageSelectorSheetContent(
+    onLanguageSelected: (String) -> Unit
+) {
+    val languages = listOf("English", "Hindi", "Punjabi", "Bengali", "Marathi", "Telugu", "Tamil", "Gujarati")
+    var selectedLanguage by remember { mutableStateOf("English") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Select Language",
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(onClick = { onLanguageSelected(selectedLanguage) }) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(languages.size) { index ->
+                val language = languages[index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            selectedLanguage = language
+                            onLanguageSelected(language)
+                        }
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RadioButton(
+                        selected = selectedLanguage == language,
+                        onClick = {
+                            selectedLanguage = language
+                            onLanguageSelected(language)
+                        }
+                    )
+                    Text(
+                        text = language,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpSupportSheetContent(
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .verticalScroll(rememberScrollState())
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Help & Support",
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
+            }
+        }
+
+        HelpSection(title = "FAQs") {
+            HelpItem(question = "How to report an issue?", answer = "Go to the Reports tab and click on the 'Add' button.")
+            HelpItem(question = "How to change my location?", answer = "Go to Edit Profile in Account Settings.")
+            HelpItem(question = "Is my data secure?", answer = "Yes, we use industry-standard encryption to protect your data.")
+        }
+
+        HelpSection(title = "Contact Us") {
+            ContactItem(icon = Icons.Default.Language, label = "Website", value = "www.sevasetu.gov.in")
+            ContactItem(icon = Icons.Default.Notifications, label = "Support Email", value = "support@sevasetu.gov.in")
+            ContactItem(icon = Icons.Default.Settings, label = "Helpline", value = "1800-123-4567")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Got it")
+        }
+    }
+}
+
+@Composable
+private fun HelpSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = title,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun HelpItem(question: String, answer: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = question,
+            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = answer,
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ContactItem(icon: ImageVector, label: String, value: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
+        )
+        Column {
+            Text(
+                text = label,
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
@@ -642,31 +821,17 @@ fun PreferenceItem(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    SevaSetuTheme(themePreference = AppTheme.LIGHT) {
-        Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-             // In preview, we just show the structure without real ViewModel if it fails
-             // But let's try to just render the Theme first
-             Column {
-                 Text("SevaSetu Light Mode", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
-                 Button(onClick = {}) { Text("Button") }
-             }
-        }
-    }
-}
+
 
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenDarkPreview() {
     SevaSetuTheme(themePreference = AppTheme.DARK) {
-        Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
-             Column {
-                 Text("SevaSetu Dark Mode", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
-                 Button(onClick = {}) { Text("Button") }
-             }
-        }
+        ProfileScreenContent(
+            onThemeChange = {},
+            currentTheme = AppTheme.DARK,
+            isPreview = true
+        )
     }
 }
 
